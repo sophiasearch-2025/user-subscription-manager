@@ -1,0 +1,11 @@
+{
+  "name": "user-subscription-system",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de usuarios y suscripciones",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
