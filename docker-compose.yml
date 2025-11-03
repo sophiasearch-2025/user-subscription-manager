@@ -1,4 +1,87 @@
-# TODO: Configurar servicios Docker (DB, API, etc.)
 version: '3.8'
+
 services:
-  # TODO: Definir servicios
+  # RabbitMQ - Sistema de mensajería para colas de notificaciones
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: subscription-rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"      # Puerto AMQP para conexión
+      - "15672:15672"    # Puerto de interfaz web de gestión
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: 123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - subscription-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # API Node.js
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: subscription-api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      RABBITMQ_URL: amqp://admin:rabbitmq123@rabbitmq:5672
+      SECRET_KEY: your-secret-key-change-in-production
+      # Firebase credentials (agregar tu config de Firebase)
+      FIREBASE_PROJECT_ID: tu-proyecto-firebase
+      FIREBASE_CLIENT_EMAIL: tu-email@firebase.com
+      # Email service config
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: tu-email@gmail.com
+      SMTP_PASS: tu-password-app
+    volumes:
+      - ./src:/app/src
+      - /app/node_modules
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - subscription-network
+    command: npm start
+
+  # Worker de notificaciones - Procesa la cola de emails
+  email-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: subscription-email-worker
+    restart: always
+    environment:
+      NODE_ENV: development
+      RABBITMQ_URL: amqp://admin:rabbitmq123@rabbitmq:5672
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: tu-email@gmail.com
+      SMTP_PASS: tu-password-app
+    volumes:
+      - ./src:/app/src
+      - /app/node_modules
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - subscription-network
+    command: node src/workers/email.worker.js
+
+volumes:
+  rabbitmq_data:
+    driver: local
+
+networks:
+  subscription-network:
+    driver: bridge
