@@ -1,18 +1,81 @@
-// Servicio de envío de emails usando Nodemailer
+// Servicio de envío de emails - Soporta múltiples proveedores
 const nodemailer = require('nodemailer');
 
 /**
- * Configuración del transportador de email
+ * Configuración del transportador de email según el servicio elegido
+ * Soporta: SendGrid, Brevo, Resend, Mailgun, Gmail
  */
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // true para 465, false para otros puertos
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+function createTransporter() {
+  const emailService = process.env.EMAIL_SERVICE || 'sendgrid';
+  
+  switch (emailService.toLowerCase()) {
+    case 'sendgrid':
+      // SendGrid - 100 emails/día gratis
+      // https://sendgrid.com/
+      return nodemailer.createTransport({
+        host: 'smtp.sendgrid.net',
+        port: 587,
+        auth: {
+          user: 'apikey',
+          pass: process.env.SENDGRID_API_KEY
+        }
+      });
+    
+    case 'brevo':
+    case 'sendinblue':
+      // Brevo (ex-Sendinblue) - 300 emails/día gratis
+      // https://www.brevo.com/
+      return nodemailer.createTransport({
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        auth: {
+          user: process.env.BREVO_API_KEY,
+          pass: process.env.BREVO_API_KEY
+        }
+      });
+    
+    case 'resend':
+      // Resend - 100 emails/día gratis
+      // https://resend.com/
+      return nodemailer.createTransport({
+        host: 'smtp.resend.com',
+        port: 587,
+        auth: {
+          user: 'resend',
+          pass: process.env.RESEND_API_KEY
+        }
+      });
+    
+    case 'mailgun':
+      // Mailgun - 100 emails/día en trial
+      // https://www.mailgun.com/
+      return nodemailer.createTransport({
+        host: 'smtp.mailgun.org',
+        port: 587,
+        auth: {
+          user: process.env.MAILGUN_API_KEY,
+          pass: process.env.MAILGUN_API_KEY
+        }
+      });
+    
+    case 'gmail':
+      // Gmail - Solo si tienes verificación en 2 pasos
+      return nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+    
+    default:
+      throw new Error(`Servicio de email no soportado: ${emailService}. Usa: sendgrid, brevo, resend, mailgun, o gmail`);
   }
-});
+}
+
+const transporter = createTransporter();
 
 /**
  * Plantilla HTML para email de suscripción recibida
@@ -143,7 +206,7 @@ function getPlanRenewedTemplate(data) {
 
 /**
  * Envía un email
- * @param {Object} message - Mensaje de la cola con formato { type, to, subject, data }
+ * @param {Object} message - Mensaje con formato { type, to, subject, data }
  */
 async function sendEmail(message) {
   try {
@@ -165,7 +228,7 @@ async function sendEmail(message) {
     }
 
     const mailOptions = {
-      from: `"Sistema de Suscripciones" <${process.env.SMTP_USER}>`,
+      from: `"Sistema de Suscripciones" <${process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@example.com'}>`,
       to: message.to,
       subject: message.subject,
       html: htmlContent
@@ -178,6 +241,42 @@ async function sendEmail(message) {
     console.error('❌ Error enviando email:', error);
     throw error;
   }
+}
+
+/**
+ * Envía email de notificación de suscripción recibida
+ */
+async function sendSubscriptionReceivedEmail(to, data) {
+  return sendEmail({
+    type: 'SUBSCRIPTION_RECEIVED',
+    to,
+    subject: '✅ Solicitud de suscripción recibida',
+    data
+  });
+}
+
+/**
+ * Envía email de notificación de plan próximo a vencer
+ */
+async function sendPlanExpiringEmail(to, data) {
+  return sendEmail({
+    type: 'PLAN_EXPIRING',
+    to,
+    subject: `⚠️ Tu plan vence en ${data.daysRemaining} días`,
+    data
+  });
+}
+
+/**
+ * Envía email de notificación de plan renovado
+ */
+async function sendPlanRenewedEmail(to, data) {
+  return sendEmail({
+    type: 'PLAN_RENEWED',
+    to,
+    subject: '✅ Plan renovado exitosamente',
+    data
+  });
 }
 
 /**
@@ -196,6 +295,9 @@ async function verifyConnection() {
 
 module.exports = {
   sendEmail,
+  sendSubscriptionReceivedEmail,
+  sendPlanExpiringEmail,
+  sendPlanRenewedEmail,
   verifyConnection
 };
 

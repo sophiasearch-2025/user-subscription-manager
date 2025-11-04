@@ -1,23 +1,31 @@
 # User Subscription System
 
-Sistema de gestión de usuarios y suscripciones con notificaciones por email usando RabbitMQ.
+Sistema de gestión de usuarios y suscripciones con notificaciones automáticas por email usando **Firebase y Gmail** - **100% GRATUITO**.
 
 ## 🏗️ Arquitectura
 
 - **API Node.js + Express**: Endpoints REST para gestión de suscripciones
-- **Firebase**: Base de datos (Firestore)
-- **RabbitMQ**: Sistema de mensajería para colas de notificaciones
-- **Email Worker**: Procesador de cola para envío de emails
-- **Nodemailer**: Servicio de envío de emails
+- **Firebase Firestore**: Base de datos en la nube (gratis hasta 1GB)
+- **Nodemailer + Gmail**: Servicio de envío de emails (500 emails/día gratis)
+- **Scheduler Service**: Verificación periódica de suscripciones
+- **Cron Jobs Externos**: Automatización gratuita con servicios como cron-job.org
+
+## ✨ Características
+
+✅ Notificaciones automáticas por email  
+✅ Verificación de suscripciones próximas a vencer (7, 3, 1 días antes)  
+✅ Templates HTML profesionales  
+✅ Auditoría de notificaciones en Firebase  
+✅ Sin colas complejas (RabbitMQ removido)  
+✅ 100% gratuito - Sin tarjeta de crédito  
 
 ## 📋 Requisitos Previos
 
-- Docker Desktop instalado
-- Node.js 18+ (para desarrollo local)
-- Cuenta de Firebase configurada
-- Cuenta de email para envío (Gmail recomendado)
+- Node.js 18+ 
+- Cuenta de Firebase (plan gratuito)
+- Cuenta de Gmail (para envío de emails)
 
-## 🚀 Instalación
+## 🚀 Instalación Rápida
 
 ### 1. Clonar el repositorio
 ```bash
@@ -25,7 +33,28 @@ git clone <tu-repo>
 cd user-subscription-manager
 ```
 
-### 2. Configurar variables de entorno
+### 2. Instalar dependencias
+```bash
+npm install
+```
+
+### 3. Configurar Firebase
+
+1. Crea un proyecto en https://console.firebase.google.com/
+2. Activa Firestore Database
+3. Descarga las credenciales:
+   - Ve a "Configuración del proyecto" → "Cuentas de servicio"
+   - Click en "Generar nueva clave privada"
+   - Guarda el archivo como `serviceAccountKey.json` en la raíz del proyecto
+
+### 4. Configurar Gmail
+
+1. Ve a https://myaccount.google.com/apppasswords
+2. Genera una "contraseña de aplicación"
+3. Copia la contraseña (16 caracteres)
+
+### 5. Configurar variables de entorno
+
 ```bash
 cp .env.example .env
 ```
@@ -33,163 +62,116 @@ cp .env.example .env
 Edita `.env` con tus credenciales:
 ```env
 # Firebase
-FIREBASE_PROJECT_ID=tu-proyecto-real
-FIREBASE_CLIENT_EMAIL=tu-email@firebase.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_PROJECT_ID=tu-proyecto-firebase
 
 # Email (Gmail)
-SMTP_USER=tu-email@gmail.com
-SMTP_PASS=tu-password-de-aplicacion
+SMTP_USER=tucorreo@gmail.com
+SMTP_PASS=tu-contraseña-de-aplicacion-google
+
+# Frontend
+FRONTEND_URL=http://localhost:3000
 ```
 
-**Nota para Gmail**: Necesitas crear una "Contraseña de aplicación":
-1. Ve a tu cuenta de Google
-2. Seguridad → Verificación en dos pasos (actívala)
-3. Contraseñas de aplicaciones → Genera una nueva
-4. Usa esa contraseña en `SMTP_PASS`
+### 6. Iniciar el servidor
 
-### 3. Instalar dependencias
 ```bash
-npm install
+npm run dev
 ```
 
-## 🐳 Uso con Docker
-
-### Levantar todos los servicios
-```bash
-docker-compose up
-```
-
-Esto iniciará:
-- **RabbitMQ** en `http://localhost:15672` (interfaz web)
-  - Usuario: `admin`
-  - Password: `rabbitmq123`
-- **API** en `http://localhost:3000`
-- **Email Worker** procesando la cola
-
-### Levantar en segundo plano
-```bash
-docker-compose up -d
-```
-
-### Ver logs
-```bash
-# Todos los servicios
-docker-compose logs -f
-
-# Solo el worker de emails
-docker-compose logs -f email-worker
-
-# Solo la API
-docker-compose logs -f api
-```
-
-### Detener servicios
-```bash
-docker-compose down
-```
-
-### Reconstruir después de cambios
-```bash
-docker-compose up --build
-```
+El servidor estará disponible en `http://localhost:3000`
 
 ## 📧 Sistema de Notificaciones
 
-### Tipos de notificaciones implementadas:
+### Notificaciones implementadas:
 
-1. **Suscripción Recibida**: Confirma que se recibió la solicitud
-2. **Plan por Vencer**: Avisa cuando quedan X días
+1. **Suscripción Recibida**: Se envía automáticamente cuando un usuario crea una suscripción
+2. **Plan por Vencer**: Notifica 7, 3 y 1 día antes del vencimiento
 3. **Plan Renovado**: Confirma la renovación exitosa
 
-### Cómo usar el sistema de notificaciones:
+### API Endpoints
 
-```javascript
-const notificationService = require('./services/notification.service');
+#### Crear Suscripción (envía email automáticamente)
+```bash
+POST http://localhost:3000/api/subscriptions
+Content-Type: application/json
 
-// 1. Notificar suscripción recibida
-await notificationService.sendSubscriptionReceivedNotification({
-  userEmail: 'usuario@example.com',
-  userName: 'Juan Pérez',
-  planName: 'Plan Premium',
-  subscriptionId: 'sub_12345'
-});
-
-// 2. Notificar plan próximo a vencer
-await notificationService.sendPlanExpirationNotification({
-  userEmail: 'usuario@example.com',
-  userName: 'Juan Pérez',
-  planName: 'Plan Premium',
-  expirationDate: '2025-12-01',
-  daysRemaining: 7
-});
-
-// 3. Notificar renovación
-await notificationService.sendPlanRenewalNotification({
-  userEmail: 'usuario@example.com',
-  userName: 'Juan Pérez',
-  planName: 'Plan Premium',
-  newExpirationDate: '2026-12-01'
-});
+{
+  "userId": "user123",
+  "planId": "plan_premium",
+  "userEmail": "usuario@example.com",
+  "userName": "Juan Pérez",
+  "planName": "Plan Premium"
+}
 ```
 
-## 🔧 Desarrollo Local (sin Docker)
-
-### 1. Instalar RabbitMQ localmente
+#### Renovar Suscripción (envía email automáticamente)
 ```bash
-brew install rabbitmq
-brew services start rabbitmq
+POST http://localhost:3000/api/subscriptions/:subscriptionId/renew
+Content-Type: application/json
+
+{
+  "userEmail": "usuario@example.com",
+  "userName": "Juan Pérez",
+  "planName": "Plan Premium"
+}
 ```
 
-### 2. Iniciar la API
+#### Verificar Suscripciones Manualmente
 ```bash
-npm start
+POST http://localhost:3000/api/scheduler/run
 ```
 
-### 3. Iniciar el Worker (en otra terminal)
+Este endpoint verifica todas las suscripciones activas y envía notificaciones a las que estén próximas a vencer.
+
+## ⏰ Automatización con Cron Jobs (GRATIS)
+
+Para que el sistema verifique automáticamente las suscripciones todos los días, usa un servicio de cron jobs externo gratuito:
+
+### Opción 1: cron-job.org (Recomendado)
+
+1. Regístrate en https://cron-job.org/
+2. Crea un nuevo cron job:
+   - **URL**: `https://tu-dominio.com/api/scheduler/run`
+   - **Método**: POST
+   - **Horario**: Todos los días a las 9:00 AM
+   - **Formato cron**: `0 9 * * *`
+
+### Opción 2: EasyCron
+
+1. Regístrate en https://www.easycron.com/
+2. Configura un cron job similar
+
+### Opción 3: Ejecutar manualmente desde terminal
+
 ```bash
-npm run worker
+npm run scheduler
 ```
 
 ## 🧪 Probar el Sistema
 
-### 1. Acceder a RabbitMQ Management
-Abre `http://localhost:15672` en tu navegador
-- Usuario: `admin`
-- Password: `rabbitmq123`
+### 1. Verificar configuración de email
+```bash
+curl http://localhost:3000/api/health
+```
 
 ### 2. Enviar una notificación de prueba
 
-Puedes usar el servicio directamente en tu código o crear un endpoint de prueba:
-
-```javascript
-// En tu controlador o ruta de prueba
-app.post('/test/notification', async (req, res) => {
-  try {
-    await notificationService.sendSubscriptionReceivedNotification({
-      userEmail: 'tu-email@gmail.com',
-      userName: 'Prueba',
-      planName: 'Plan Test',
-      subscriptionId: 'test_123'
-    });
-    res.json({ message: 'Notificación enviada a la cola' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-```
-
-### 3. Verificar en los logs
 ```bash
-docker-compose logs -f email-worker
+curl -X POST http://localhost:3000/api/subscriptions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test123",
+    "planId": "premium",
+    "userEmail": "tu-email@gmail.com",
+    "userName": "Usuario Test",
+    "planName": "Plan Premium"
+  }'
 ```
 
-Deberías ver:
-```
-📨 Procesando mensaje tipo: SUBSCRIPTION_RECEIVED
-📧 Destinatario: tu-email@gmail.com
-✅ Email enviado: <message-id>
-✅ Mensaje procesado exitosamente
+### 3. Ejecutar verificación de suscripciones
+
+```bash
+curl -X POST http://localhost:3000/api/scheduler/run
 ```
 
 ## 📁 Estructura del Proyecto
@@ -197,37 +179,82 @@ Deberías ver:
 ```
 /user-subscription-manager
 ├── src/
-│   ├── api/                      # Rutas de la API
-│   ├── controllers/              # Lógica de negocio
-│   ├── models/                   # Modelos de datos
+│   ├── api/
+│   │   ├── auth.routes.js
+│   │   ├── user.routes.js
+│   │   ├── subscription.routes.js
+│   │   ├── scheduler.routes.js        # ✅ NUEVO: Rutas para cron jobs
+│   │   └── index.js
+│   ├── controllers/
+│   │   ├── auth.controller.js
+│   │   ├── user.controller.js
+│   │   └── subscription.controller.js
 │   ├── services/
-│   │   ├── email.service.js      # ✅ Envío de emails con plantillas HTML
-│   │   ├── notification.service.js # ✅ Envío a cola RabbitMQ
+│   │   ├── email.service.js           # ✅ Envío de emails con plantillas HTML
+│   │   ├── notification.service.js    # ✅ ACTUALIZADO: Sin RabbitMQ
+│   │   ├── scheduler.service.js       # ✅ NUEVO: Verificación de suscripciones
 │   │   ├── payment.service.js
 │   │   └── security.service.js
-│   ├── workers/
-│   │   └── email.worker.js       # ✅ Procesador de cola
-│   ├── middlewares/
 │   ├── config/
+│   │   └── firebase.js                # Configuración de Firebase
+│   ├── middlewares/
+│   ├── models/
 │   └── app.js
-├── docker-compose.yml            # ✅ Configurado con RabbitMQ
-├── Dockerfile                    # ✅ Imagen de Node.js
-├── .env.example                  # ✅ Variables de entorno
-└── package.json                  # ✅ Dependencias agregadas
+├── docs/
+│   ├── arquitectura.md
+│   └── notificaciones.md              # ✅ NUEVA: Documentación completa
+├── .env.example                       # ✅ ACTUALIZADO: Sin RabbitMQ
+├── package.json                       # ✅ ACTUALIZADO: Sin amqplib
+├── serviceAccountKey.json             # ⚠️ Agregar manualmente (Firebase)
+└── README.md
 ```
 
-## 🔍 Troubleshooting
+## � Documentación Adicional
 
-### El worker no se conecta a RabbitMQ
-- Espera unos segundos, RabbitMQ tarda en iniciarse
-- Verifica los logs: `docker-compose logs rabbitmq`
+Para más detalles sobre el sistema de notificaciones, consulta:
+- **[docs/notificaciones.md](docs/notificaciones.md)** - Guía completa de notificaciones
+
+## 🔍 Solución de Problemas
 
 ### Los emails no se envían
 - Verifica tu `SMTP_USER` y `SMTP_PASS` en `.env`
 - Si usas Gmail, asegúrate de tener una "Contraseña de aplicación"
-- Revisa los logs del worker: `docker-compose logs email-worker`
+- Prueba con: `npm run scheduler`
 
-### Mensaje permanece en la cola
+### Error: "Firebase project not found"
+- Verifica que `serviceAccountKey.json` esté en la raíz del proyecto
+- Verifica que `FIREBASE_PROJECT_ID` sea correcto en `.env`
+
+### No se envían notificaciones de expiración
+- Verifica que tengas suscripciones con `status: 'active'` en Firestore
+- Ejecuta manualmente: `curl -X POST http://localhost:3000/api/scheduler/run`
+
+## 💰 Costos (TODO GRATIS)
+
+| Servicio | Límite Gratuito | Costo Mensual |
+|----------|----------------|---------------|
+| Firebase Firestore | 1 GB + 50K lecturas/día | $0 |
+| Gmail/Nodemailer | 500 emails/día | $0 |
+| cron-job.org | Ilimitado | $0 |
+| **TOTAL** | - | **$0** |
+
+## 🎯 Próximos Pasos
+
+1. ✅ Sistema de notificaciones implementado
+2. ⏳ Agregar más tipos de notificaciones (bienvenida, recordatorios, etc.)
+3. ⏳ Dashboard para ver estadísticas de notificaciones
+4. ⏳ Soporte para templates de email personalizables
+
+## 📞 Soporte
+
+Si tienes problemas:
+1. Revisa la documentación en `docs/notificaciones.md`
+2. Verifica los logs del servidor
+3. Prueba los endpoints manualmente con curl o Postman
+
+---
+
+**¡Sistema 100% funcional y gratuito!** 🎉
 - Revisa los logs para ver el error
 - Accede a RabbitMQ Management y revisa la cola manualmente
 
