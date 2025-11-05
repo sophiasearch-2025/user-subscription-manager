@@ -13,6 +13,13 @@ async function loadData() {
 function renderUsers(users) {
   const container = document.getElementById('usersList');
   container.innerHTML = '';
+  if (!users || users.length === 0) {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = '<em>No se encontraron usuarios</em>';
+    container.appendChild(div);
+    return;
+  }
   users.forEach(u => {
     const div = document.createElement('div');
     div.className = 'card';
@@ -28,6 +35,13 @@ function renderUsers(users) {
 function renderSubs(subs) {
   const container = document.getElementById('subsList');
   container.innerHTML = '';
+  if (!subs || subs.length === 0) {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = '<em>No se encontraron suscripciones</em>';
+    container.appendChild(div);
+    return;
+  }
   subs.forEach(s => {
     const div = document.createElement('div');
     div.className = 'card';
@@ -48,7 +62,14 @@ function applyFilter(data) {
     return;
   }
 
-  const users = data.users.filter(u => u.email.toLowerCase().includes(q));
+  // Buscar por email, nombre o compañía (case-insensitive)
+  const users = data.users.filter(u => {
+    return [u.email, u.name, u.company]
+      .filter(Boolean)
+      .some(field => field.toLowerCase().includes(q));
+  });
+
+  // Mostrar suscripciones asociadas a los usuarios resultantes
   const subs = data.subscriptions.filter(s => users.some(u => u.uid === s.userUid));
 
   renderUsers(users);
@@ -60,6 +81,10 @@ function setup(data) {
   renderSubs(data.subscriptions);
 
   document.getElementById('btnFilter').addEventListener('click', () => applyFilter(data));
+  // Permitir filtrar al presionar Enter en el input
+  document.getElementById('filterEmail').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') applyFilter(data);
+  });
   document.getElementById('btnReset').addEventListener('click', () => {
     document.getElementById('filterEmail').value = '';
     applyFilter(data);
@@ -72,6 +97,27 @@ function setup(data) {
     a.download = 'simulacion-data.json';
     a.click();
     URL.revokeObjectURL(url);
+  });
+
+  // Cargar datos desde la API pública (backend)
+  document.getElementById('btnLoadRemote').addEventListener('click', async () => {
+    const base = document.getElementById('apiBase').value.trim() || window.location.origin;
+    try {
+      const res = await fetch(`${base}/api/public/users?limit=200`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || 'Error cargando datos');
+      const remoteData = { users: json.data || [], subscriptions: [] };
+      // Renderiza los usuarios remotos y borra subs (no hay endpoint público para subs aún)
+      renderUsers(remoteData.users);
+      renderSubs(remoteData.subscriptions);
+      // bind filter to remote dataset
+      document.getElementById('btnFilter').onclick = () => applyFilter(remoteData);
+      document.getElementById('filterEmail').onkeydown = (e) => { if (e.key === 'Enter') applyFilter(remoteData); };
+    } catch (err) {
+      alert('Error cargando datos remotos: ' + err.message);
+      console.error(err);
+    }
   });
 }
 
