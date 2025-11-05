@@ -7,6 +7,7 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "scheduler": "node -e \"require('./src/services/scheduler.service').runScheduledTasks()\"",
+    "test": "jest --runInBand",
     "test:notifications": "node src/scripts/test-notifications.js",
     "test:firestore": "node src/scripts/test-firestore.js",
     "seed": "node src/scripts/seed.js"
@@ -22,6 +23,12 @@
     "stripe": "^19.2.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "jest": "^29.6.1",
+    "supertest": "^6.3.3"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/api_test"]
   }
 }

@@ -71,23 +71,25 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-  console.log(`📡 API disponible en http://localhost:${PORT}`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-});
+// Iniciar servidor solo cuando se ejecuta directamente (no al requerir en tests)
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+    console.log(`📡 API disponible en http://localhost:${PORT}`);
+    console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  });
 
-// Manejo de señales de terminación
-process.on('SIGINT', () => {
-  console.log('\n⏹️  Servidor detenido');
-  process.exit(0);
-});
+  // Manejo de señales de terminación
+  process.on('SIGINT', () => {
+    console.log('\n⏹️  Servidor detenido');
+    server.close(() => process.exit(0));
+  });
 
-process.on('SIGTERM', () => {
-  console.log('\n⏹️  Servidor detenido');
-  process.exit(0);
-});
+  process.on('SIGTERM', () => {
+    console.log('\n⏹️  Servidor detenido');
+    server.close(() => process.exit(0));
+  });
+}
 
 module.exports = app;
 
