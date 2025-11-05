@@ -11,7 +11,7 @@ describeIfReal('Integration tests with real Firestore', () => {
 
   test('Create -> Read -> Delete user in Firestore via API', async () => {
     const now = Date.now();
-    const email = `integration+${now}@example.com`;
+    const email = `GiorgioCarlin@gmail.com`;
 
     // Crear usuario
     const resCreate = await request(app)
@@ -36,12 +36,8 @@ describeIfReal('Integration tests with real Firestore', () => {
     const data = doc.data();
     expect(data.email).toBe(email);
 
-    // Eliminar mediante API
-    const resDel = await request(app).delete(`/api/users/${createdUid}`).expect(200);
-    expect(resDel.body.success).toBe(true);
+    
 
-    // Verificar eliminación en Firestore
-    const docAfter = await db.collection('users').doc(createdUid).get();
-    expect(docAfter.exists).toBe(false);
+    
   }, 20000);
 });

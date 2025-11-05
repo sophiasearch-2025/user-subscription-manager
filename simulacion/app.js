@@ -101,21 +101,46 @@ function setup(data) {
 
   // Cargar datos desde la API pública (backend)
   document.getElementById('btnLoadRemote').addEventListener('click', async () => {
-    const base = document.getElementById('apiBase').value.trim() || window.location.origin;
+    let input = document.getElementById('apiBase').value.trim();
+    if (!input) input = window.location.origin;
+
+    // Si el usuario pega una URL completa (empieza con http), la usamos tal cual.
+    // Si pega solo host (sin http) o solo host+path base, añadimos /api/public/users cuando corresponda.
+    let url = input;
     try {
-      const res = await fetch(`${base}/api/public/users?limit=200`);
+      if (!/^https?:\/\//i.test(input)) {
+        // no empieza con http -> tratar como host y añadir endpoint
+        url = input.replace(/\/$/, '') + '/api/public/users?limit=200';
+        if (!/^https?:\/\//i.test(url)) {
+          // si todavía no tiene esquema, asumir http
+          url = 'http://' + url;
+        }
+      } else {
+        // Si el input ya es una URL completa, usar tal cual
+        // Si la URL no contiene '/api/' asumimos que el user dio un host y añadimos el path
+        if (!/\/api\//i.test(input)) {
+          url = input.replace(/\/$/, '') + '/api/public/users?limit=200';
+        }
+      }
+
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (!json.success) throw new Error(json.message || 'Error cargando datos');
-      const remoteData = { users: json.data || [], subscriptions: [] };
+      if (!json.success && !Array.isArray(json)) throw new Error(json.message || 'Error cargando datos');
+
+      // json can be either { success, data } or an array
+      const usersRaw = Array.isArray(json) ? json : (json.data || json || []);
+      const remoteData = { users: usersRaw || [], subscriptions: [] };
+
       // Renderiza los usuarios remotos y borra subs (no hay endpoint público para subs aún)
       renderUsers(remoteData.users);
       renderSubs(remoteData.subscriptions);
+
       // bind filter to remote dataset
       document.getElementById('btnFilter').onclick = () => applyFilter(remoteData);
       document.getElementById('filterEmail').onkeydown = (e) => { if (e.key === 'Enter') applyFilter(remoteData); };
     } catch (err) {
-      alert('Error cargando datos remotos: ' + err.message);
+      alert('Error cargando datos remotos: ' + err.message + '\nURL: ' + url);
       console.error(err);
     }
   });
