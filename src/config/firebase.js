@@ -1,19 +1,34 @@
 const admin = require('firebase-admin');
 const path = require('path');
+const fs = require('fs');
 
-// Lee las credenciales desde el archivo JSON
+// Intentar leer credenciales locales sólo si existen (desarrollo)
 const serviceAccountPath = path.join(__dirname, '../../serviceAccountKey.json');
-const serviceAccount = require(serviceAccountPath);
+let serviceAccount = null;
+if (fs.existsSync(serviceAccountPath)) {
+  try {
+    serviceAccount = require(serviceAccountPath);
+  } catch (err) {
+    console.warn('No se pudo leer serviceAccountKey.json:', err.message);
+    serviceAccount = null;
+  }
+}
 
 // Inicializa Firebase Admin
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.FIREBASE_PROJECT_ID
-  });
+  if (serviceAccount) {
+    // Desarrollo local: usar credenciales del archivo JSON
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id
+    });
+  } else {
+    // Entorno de production (Cloud Functions / Hosting): usar credenciales del entorno
+    admin.initializeApp();
+  }
 }
 
-// Exporta Firestore
+// Exporta Firestore y Auth
 const db = admin.firestore();
 const auth = admin.auth();
 
