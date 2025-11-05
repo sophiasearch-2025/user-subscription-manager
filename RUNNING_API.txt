@@ -1,0 +1,117 @@
+Cómo ejecutar la API - Instrucciones rápidas
+
+Este archivo recopila los comandos y opciones para ejecutar y probar la API
+del proyecto "user-subscription-system" (Express + Firestore).
+
+Requisitos previos
+- Node.js (recomendado: v18.x) y npm
+- Docker (opcional, para ejecución en contenedor)
+- Si vas a usar Firestore real: un JSON de credenciales de servicio de Firebase
+  (serviceAccountKey.json). NO subir este archivo al repositorio.
+
+1) Instalar dependencias
+
+npm install
+
+2) Ejecutar en desarrollo (autoreload)
+
+npm run dev
+
+Por defecto el servidor escucha en http://localhost:3000
+
+3) Ejecutar en modo normal (producción ligera)
+
+npm start
+
+4) Proveer credenciales de Firestore (opciones)
+
+Opción A — archivo local (más simple en desarrollo)
+- Coloca tu JSON en la raíz del proyecto con el nombre: serviceAccountKey.json
+- El código buscará automáticamente ./serviceAccountKey.json.
+
+Opción B — Application Default Credentials (ADC)
+- Exporta la variable apuntando al archivo JSON:
+
+export GOOGLE_APPLICATION_CREDENTIALS="/ruta/absoluta/serviceAccountKey.json"
+npm start
+
+Nota: si ambos métodos existen, el código prioriza el archivo en la raíz.
+
+5) Endpoints útiles (ejemplos curl)
+
+Health check
+curl http://localhost:3000/health
+
+Usuarios públicos (sanitizados)
+curl "http://localhost:3000/api/public/users?limit=20"
+
+CRUD de usuarios (ejemplos)
+
+Crear usuario (POST):
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","name":"Test User"}'
+
+Listar usuarios:
+curl http://localhost:3000/api/users
+
+Obtener por uid:
+curl http://localhost:3000/api/users/<UID>
+
+Actualizar (PUT):
+curl -X PUT http://localhost:3000/api/users/<UID> \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Nuevo nombre"}'
+
+Borrar:
+curl -X DELETE http://localhost:3000/api/users/<UID>
+
+6) Tests
+
+Tests unitarios (mocked):
+npm test
+
+Test de integración (usa Firestore real — requiere credenciales):
+USE_REAL_FIREBASE=true npm test
+
+7) Ejecutar con Docker
+
+Construir imagen:
+docker build -t user-subscription-system:latest .
+
+Ejecutar (montando credenciales en el contenedor):
+docker run -p 3000:3000 \
+  -v /ruta/absoluta/serviceAccountKey.json:/app/serviceAccountKey.json:ro \
+  -e PORT=3000 \
+  user-subscription-system:latest
+
+Alternativa (usar ADC dentro del contenedor):
+docker run -p 3000:3000 \
+  -v /ruta/absoluta/serviceAccountKey.json:/secrets/serviceAccountKey.json:ro \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/secrets/serviceAccountKey.json \
+  user-subscription-system:latest
+
+8) Variables de entorno relevantes
+- PORT - puerto donde corre la app (por defecto 3000)
+- FIREBASE_PROJECT_ID - opcional
+- GOOGLE_APPLICATION_CREDENTIALS - ruta absoluta al JSON, si usas ADC
+- Claves externas (Stripe, SendGrid, etc.): definelas en el host como secrets/env
+
+9) Troubleshooting rápido
+- Si recibes errores de credenciales: confirma la presencia y permisos del JSON o la
+  correcta configuración de GOOGLE_APPLICATION_CREDENTIALS.
+- Si el puerto 3000 está ocupado: cambia con PORT, por ejemplo:
+  PORT=4000 npm start
+- Logs en Docker: docker logs <container-id>
+- Para depurar fallos de arranque: revisa la salida en el terminal donde ejecutas npm
+
+10) Seguridad y buenas prácticas
+- No subas `serviceAccountKey.json` al repositorio; usa el gestor de secrets del
+  proveedor (Fly, Render, Heroku, Vercel) en producción.
+- Usa entornos separados (dev/staging/prod) y keys distintas.
+
+11) Próximos pasos sugeridos
+- Crear un `README.md` con estas instrucciones y ejemplos de uso.
+- Preparar secretos en el proveedor elegido y desplegar via Docker o serverless.
+
+Fin.
