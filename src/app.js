@@ -24,12 +24,12 @@ app.use('/api/', limiter);
 // Rutas
 const subscriptionRoutes = require('./api/subscription.routes');
 // const authRoutes = require('./api/auth.routes');
-// const userRoutes = require('./api/user.routes');
+const userRoutes = require('./api/user.routes');
 
 // Montar rutas
 app.use('/api/subscriptions', subscriptionRoutes);
 // app.use('/api/auth', authRoutes);
-// app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes);
 
 // Ruta de health check
 app.get('/health', (req, res) => {

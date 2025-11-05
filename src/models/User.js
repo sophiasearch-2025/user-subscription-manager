@@ -23,8 +23,15 @@ class User {
   static async create(userData) {
     try {
       const user = new User(userData);
-      const docRef = db.collection('users').doc(user.uid);
-      
+      // Si no se proporciona uid, crear un documento con ID automático
+      let docRef;
+      if (user.uid) {
+        docRef = db.collection('users').doc(user.uid);
+      } else {
+        docRef = db.collection('users').doc();
+        user.uid = docRef.id; // asignar el id generado
+      }
+
       await docRef.set({
         uid: user.uid,
         email: user.email,
