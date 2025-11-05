@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Simulación - Visor de Datos</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Simulación - Visor público de datos</h1>
+      <p class="lead">Interfaz estática para que terceros revisen datos (no modifica el sistema).</p>
+    </header>
+
+    <main class="container">
+      <section class="controls">
+        <label>Filtrar por email: <input id="filterEmail" placeholder="ej. user@example.com" /></label>
+        <button id="btnFilter">Aplicar</button>
+        <button id="btnReset">Reset</button>
+        <button id="btnExport">Exportar JSON</button>
+      </section>
+
+      <section>
+        <h2>Usuarios</h2>
+        <div id="usersList" class="grid"></div>
+      </section>
+
+      <section>
+        <h2>Suscripciones</h2>
+        <div id="subsList" class="grid"></div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Simulación local - Datos de ejemplo
+      </small>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

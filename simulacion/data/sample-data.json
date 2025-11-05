@@ -1,0 +1,36 @@
+{
+  "users": [
+    {
+      "uid": "u_1",
+      "email": "alice@example.com",
+      "name": "Alice Example",
+      "company": "ACME Ltd.",
+      "role": "user",
+      "createdAt": "2025-01-15T10:00:00Z"
+    },
+    {
+      "uid": "u_2",
+      "email": "bob@example.com",
+      "name": "Bob Example",
+      "company": "Globex",
+      "role": "premium",
+      "createdAt": "2025-03-02T08:30:00Z"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "sub_1",
+      "userUid": "u_2",
+      "plan": "Premium",
+      "status": "active",
+      "expiresAt": "2025-12-01T00:00:00Z"
+    },
+    {
+      "id": "sub_2",
+      "userUid": "u_1",
+      "plan": "Basic",
+      "status": "inactive",
+      "expiresAt": "2025-05-01T00:00:00Z"
+    }
+  ]
+}
