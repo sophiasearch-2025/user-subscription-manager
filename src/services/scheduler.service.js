@@ -1,5 +1,5 @@
 // Servicio para verificación periódica de suscripciones
-const { db } = require('../config/firebase');
+const admin = require('firebase-admin');
 const emailService = require('./email.service');
 
 /**
@@ -8,6 +8,7 @@ const emailService = require('./email.service');
  * 
  * Se envían notificaciones en:
  * - 7 días antes del vencimiento
+ * - 5 días antes del vencimiento
  * - 3 días antes del vencimiento
  * - 1 día antes del vencimiento
  */
@@ -15,8 +16,9 @@ async function checkExpiringSubscriptions() {
   try {
     console.log('🔍 Iniciando verificación de suscripciones...');
     
+    const db = admin.firestore();
     const now = new Date();
-    const notificationDays = [7, 3, 1]; // Días antes del vencimiento para notificar
+    const notificationDays = [7, 5, 3, 1]; // Días antes del vencimiento para notificar
     
     // Obtener todas las suscripciones activas
     const subscriptionsRef = db.collection('subscriptions');
@@ -35,25 +37,27 @@ async function checkExpiringSubscriptions() {
     // Revisar cada suscripción
     snapshot.forEach(doc => {
       const subscription = doc.data();
-      const expirationDate = new Date(subscription.expirationDate);
+      const expirationDate = subscription.endDate?.toDate ? subscription.endDate.toDate() : new Date(subscription.endDate);
       const daysUntilExpiration = Math.ceil((expirationDate - now) / (1000 * 60 * 60 * 24));
       
       // Verificar si necesita notificación
       if (notificationDays.includes(daysUntilExpiration)) {
-        // Verificar si ya se envió notificación hoy
-        const lastNotification = subscription.lastExpirationNotification 
-          ? new Date(subscription.lastExpirationNotification)
-          : null;
+        // Verificar si ya se envió notificación hoy para este día específico
+        const notificationKey = `expiring_${daysUntilExpiration}d`;
+        const lastNotification = subscription.lastNotifications?.[notificationKey];
         
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        const today = new Date().toISOString().split('T')[0];
+        const lastNotificationDate = lastNotification?.toDate ? 
+          lastNotification.toDate().toISOString().split('T')[0] : 
+          lastNotification?.split('T')[0];
         
-        // Solo enviar si no se ha enviado notificación hoy
-        if (!lastNotification || lastNotification < todayStart) {
+        // Solo enviar si no se ha enviado notificación hoy para este día específico
+        if (!lastNotificationDate || lastNotificationDate !== today) {
           subscriptionsToNotify.push({
             id: doc.id,
             ...subscription,
-            daysRemaining: daysUntilExpiration
+            daysRemaining: daysUntilExpiration,
+            expirationDate: expirationDate
           });
         }
       }
@@ -74,14 +78,26 @@ async function checkExpiringSubscriptions() {
         // Enviar email
         await emailService.sendPlanExpiringEmail(user.email, {
           userName: user.name || user.email,
-          planName: subscription.planName || 'Plan Premium',
+          planName: subscription.planName || subscription.planId || 'Plan Premium',
           expirationDate: subscription.expirationDate,
           daysRemaining: subscription.daysRemaining
         });
         
-        // Actualizar marca de notificación enviada
+        // Actualizar marca de notificación enviada para este día específico
+        const notificationKey = `expiring_${subscription.daysRemaining}d`;
         await db.collection('subscriptions').doc(subscription.id).update({
-          lastExpirationNotification: now.toISOString()
+          [`lastNotifications.${notificationKey}`]: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        // Registrar en colección de notificaciones
+        await db.collection('notifications').add({
+          type: 'PLAN_EXPIRING',
+          userId: subscription.userId,
+          email: user.email,
+          subscriptionId: subscription.id,
+          daysRemaining: subscription.daysRemaining,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          status: 'sent'
         });
         
         notificationsSent++;
@@ -112,31 +128,42 @@ async function checkExpiredSubscriptions() {
   try {
     console.log('🔍 Verificando suscripciones expiradas...');
     
+    const db = admin.firestore();
     const now = new Date();
     const subscriptionsRef = db.collection('subscriptions');
     const snapshot = await subscriptionsRef
       .where('status', '==', 'active')
-      .where('expirationDate', '<=', now.toISOString())
       .get();
     
     if (snapshot.empty) {
-      console.log('ℹ️ No hay suscripciones expiradas');
+      console.log('ℹ️ No hay suscripciones activas para verificar');
       return 0;
     }
     
     let expiredCount = 0;
     const batch = db.batch();
     
+    // Verificar cada suscripción
     snapshot.forEach(doc => {
-      batch.update(doc.ref, { 
-        status: 'expired',
-        expiredAt: now.toISOString()
-      });
-      expiredCount++;
+      const subscription = doc.data();
+      const endDate = subscription.endDate?.toDate ? subscription.endDate.toDate() : new Date(subscription.endDate);
+      
+      // Si ya expiró, marcarla como expired
+      if (endDate <= now) {
+        batch.update(doc.ref, { 
+          status: 'expired',
+          expiredAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        expiredCount++;
+      }
     });
     
-    await batch.commit();
-    console.log(`✅ ${expiredCount} suscripciones marcadas como expiradas`);
+    if (expiredCount > 0) {
+      await batch.commit();
+      console.log(`✅ ${expiredCount} suscripciones marcadas como expiradas`);
+    } else {
+      console.log('ℹ️ No hay suscripciones expiradas');
+    }
     
     return expiredCount;
     

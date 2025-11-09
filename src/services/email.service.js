@@ -6,7 +6,7 @@ const nodemailer = require('nodemailer');
  * Soporta: SendGrid, Brevo, Resend, Mailgun, Gmail
  */
 function createTransporter() {
-  const emailService = process.env.EMAIL_SERVICE || 'sendgrid';
+  const emailService = process.env.EMAIL_SERVICE || 'gmail';
   
   switch (emailService.toLowerCase()) {
     case 'sendgrid':
@@ -76,6 +76,54 @@ function createTransporter() {
 }
 
 const transporter = createTransporter();
+
+/**
+ * Plantilla HTML para email de bienvenida
+ */
+function getWelcomeTemplate(data) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .highlight { background: #E8F5E9; border-left: 4px solid #4CAF50; padding: 15px; margin: 20px 0; }
+        .button { display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
+        .footer { padding: 10px; text-align: center; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🎉 ¡Bienvenido a la Plataforma!</h1>
+        </div>
+        <div class="content">
+          <p>Hola <strong>${data.userName || 'Usuario'}</strong>,</p>
+          <div class="highlight">
+            <p>¡Nos alegra tenerte con nosotros! Tu cuenta ha sido creada exitosamente.</p>
+          </div>
+          <p>Con nuestra plataforma podrás gestionar tus suscripciones de manera fácil y segura.</p>
+          <p><strong>¿Qué puedes hacer ahora?</strong></p>
+          <ul>
+            <li>✅ Explorar nuestros planes de suscripción</li>
+            <li>✅ Gestionar tu perfil</li>
+            <li>✅ Recibir notificaciones automáticas</li>
+          </ul>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" class="button">Ir a la Plataforma</a>
+          </p>
+        </div>
+        <div class="footer">
+          <p>Este es un email automático, por favor no respondas.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
 /**
  * Plantilla HTML para email de suscripción recibida
@@ -214,6 +262,9 @@ async function sendEmail(message) {
     
     // Seleccionar plantilla según el tipo
     switch (message.type) {
+      case 'WELCOME':
+        htmlContent = getWelcomeTemplate(message.data);
+        break;
       case 'SUBSCRIPTION_RECEIVED':
         htmlContent = getSubscriptionReceivedTemplate(message.data);
         break;
@@ -241,6 +292,18 @@ async function sendEmail(message) {
     console.error('❌ Error enviando email:', error);
     throw error;
   }
+}
+
+/**
+ * Envía email de bienvenida a nuevos usuarios
+ */
+async function sendWelcomeEmail(to, data) {
+  return sendEmail({
+    type: 'WELCOME',
+    to,
+    subject: '🎉 ¡Bienvenido a la plataforma!',
+    data
+  });
 }
 
 /**
@@ -295,6 +358,7 @@ async function verifyConnection() {
 
 module.exports = {
   sendEmail,
+  sendWelcomeEmail,
   sendSubscriptionReceivedEmail,
   sendPlanExpiringEmail,
   sendPlanRenewedEmail,

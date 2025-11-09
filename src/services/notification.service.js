@@ -1,6 +1,54 @@
-// Servicio de notificaciones - Envía notificaciones por email usando Firebase
+// Servicio de notificaciones - Envía notificaciones individuales por email
+const admin = require('firebase-admin');
 const emailService = require('./email.service');
-const { db } = require('../config/firebase');
+
+/**
+ * Envía email de bienvenida a un usuario
+ * @param {string} userId - ID del usuario
+ * @param {Object} userData - Datos del usuario (email, name)
+ */
+async function sendWelcomeNotification(userId, userData) {
+  try {
+    if (!userData.email) {
+      console.warn(`⚠️ Usuario ${userId} no tiene email`);
+      return null;
+    }
+
+    console.log(`📧 Enviando email de bienvenida a: ${userData.email}`);
+    
+    const result = await emailService.sendWelcomeEmail(userData.email, {
+      userName: userData.name || userData.email.split('@')[0]
+    });
+
+    // Registrar la notificación en Firebase
+    const db = admin.firestore();
+    await db.collection('notifications').add({
+      type: 'WELCOME',
+      userId: userId,
+      email: userData.email,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'sent'
+    });
+
+    console.log(`✅ Email de bienvenida enviado a ${userData.email}`);
+    return result;
+  } catch (error) {
+    console.error(`❌ Error enviando bienvenida a ${userData.email}:`, error.message);
+    
+    // Registrar error
+    const db = admin.firestore();
+    await db.collection('notifications').add({
+      type: 'WELCOME',
+      userId: userId,
+      email: userData.email,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: 'failed',
+      error: error.message
+    });
+    
+    throw error;
+  }
+}
 
 /**
  * Envía notificación de suscripción recibida
@@ -17,12 +65,13 @@ async function sendSubscriptionReceivedNotification(data) {
     });
     
     // Registrar la notificación en Firebase (opcional, para auditoría)
+    const db = admin.firestore();
     await db.collection('notifications').add({
       type: 'SUBSCRIPTION_RECEIVED',
       userId: data.userId || null,
       email: data.userEmail,
       subscriptionId: data.subscriptionId,
-      sentAt: new Date().toISOString(),
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'sent'
     });
     
@@ -32,10 +81,11 @@ async function sendSubscriptionReceivedNotification(data) {
     console.error('❌ Error enviando notificación de suscripción:', error);
     
     // Registrar error en Firebase
+    const db = admin.firestore();
     await db.collection('notifications').add({
       type: 'SUBSCRIPTION_RECEIVED',
       email: data.userEmail,
-      sentAt: new Date().toISOString(),
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'failed',
       error: error.message
     });
@@ -61,12 +111,13 @@ async function sendPlanExpirationNotification(data) {
     });
     
     // Registrar la notificación en Firebase
+    const db = admin.firestore();
     await db.collection('notifications').add({
       type: 'PLAN_EXPIRING',
       userId: data.userId || null,
       email: data.userEmail,
       daysRemaining: data.daysRemaining,
-      sentAt: new Date().toISOString(),
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'sent'
     });
     
@@ -75,10 +126,11 @@ async function sendPlanExpirationNotification(data) {
   } catch (error) {
     console.error('❌ Error enviando notificación de expiración:', error);
     
+    const db = admin.firestore();
     await db.collection('notifications').add({
       type: 'PLAN_EXPIRING',
       email: data.userEmail,
-      sentAt: new Date().toISOString(),
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'failed',
       error: error.message
     });
@@ -102,11 +154,12 @@ async function sendPlanRenewalNotification(data) {
     });
     
     // Registrar la notificación en Firebase
+    const db = admin.firestore();
     await db.collection('notifications').add({
       type: 'PLAN_RENEWED',
       userId: data.userId || null,
       email: data.userEmail,
-      sentAt: new Date().toISOString(),
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'sent'
     });
     
@@ -115,10 +168,11 @@ async function sendPlanRenewalNotification(data) {
   } catch (error) {
     console.error('❌ Error enviando notificación de renovación:', error);
     
+    const db = admin.firestore();
     await db.collection('notifications').add({
       type: 'PLAN_RENEWED',
       email: data.userEmail,
-      sentAt: new Date().toISOString(),
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'failed',
       error: error.message
     });
@@ -128,6 +182,7 @@ async function sendPlanRenewalNotification(data) {
 }
 
 module.exports = {
+  sendWelcomeNotification,
   sendSubscriptionReceivedNotification,
   sendPlanExpirationNotification,
   sendPlanRenewalNotification
