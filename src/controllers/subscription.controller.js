@@ -1,4 +1,5 @@
 // Controlador de suscripciones
+const { db } = require('../config/firebase');
 const notificationService = require('../services/notification.service');
 
 /**
@@ -121,12 +122,23 @@ async function checkExpiringSubscriptions(req, res) {
  */
 async function getAllSubscriptions(req, res) {
   try {
-    // TODO: Obtener de Firebase
+    const subscriptionsRef = db.collection('subscriptions');
+    const snapshot = await subscriptionsRef.get();
+    
+    const subscriptions = [];
+    snapshot.forEach(doc => {
+      subscriptions.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
     res.json({
       success: true,
-      data: []
+      data: subscriptions
     });
   } catch (error) {
+    console.error('Error obteniendo suscripciones:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -140,12 +152,25 @@ async function getAllSubscriptions(req, res) {
 async function getSubscriptionById(req, res) {
   try {
     const { id } = req.params;
-    // TODO: Buscar en Firebase
+    const docRef = db.collection('subscriptions').doc(id);
+    const doc = await docRef.get();
+    
+    if (!doc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Suscripción no encontrada'
+      });
+    }
+    
     res.json({
       success: true,
-      data: null
+      data: {
+        id: doc.id,
+        ...doc.data()
+      }
     });
   } catch (error) {
+    console.error('Error obteniendo suscripción:', error);
     res.status(500).json({
       success: false,
       error: error.message

@@ -6,12 +6,14 @@ const router = express.Router();
 const authRoutes = require('./auth.routes');
 const userRoutes = require('./user.routes');
 const subscriptionRoutes = require('./subscription.routes');
+const paymentRoutes = require('./payment.routes');
 const schedulerRoutes = require('./scheduler.routes');
 
 // Registrar rutas
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/subscriptions', subscriptionRoutes);
+router.use('/payments', paymentRoutes);
 router.use('/scheduler', schedulerRoutes);
 
 // Ruta de salud
