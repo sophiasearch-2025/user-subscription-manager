@@ -83,7 +83,7 @@ user-subscription-manager/
 ```
 
 #### Diagrama 3. Componentes del sistema  
-> *(Representación actual de los módulos, API y base de datos)* 
+Representación actual de los módulos, API y base de datos
 
 ![Diagrama 3](./diagramas/componentes.png)
 
@@ -91,9 +91,44 @@ user-subscription-manager/
 #### Diagrama 4. Gestion de estados
 Esta es la vista de Procesos
 
-![Diagrama 4](./diagramas/estados.png)
+![Diagrama 4](./diagramas/vista_procesos.png)
+
+#### Diagrama 5. Vista Logica
+Esta es la vista de Logica
+
+![Diagrama 5](./diagramas/vista_logica.png)
 
 ---
 
 ## 2. Arquitectura final esperada (v1.0)
+
+#### Diagrama 1. Arquitectura general del subsistema v1.0  
+Este diagrama muestra la interacción entre los componentes principales del subsistema user-subscription-manager en su versión final.  
+Incluye la integración con Stripe, el sistema de reportes y el módulo de monitoreo.
+
+![Diagrama 1](./diagramas/arquitectura_general_final.png)
+
+#### Diagrama 2. Flujo de datos y procesos  
+Este diagrama representa el flujo de información entre los componentes del subsistema.  
+Desde la creación del usuario hasta la confirmación del pago y generación de reportes.
+
+```
+[Usuario] 
+   │
+   ▼
+[Interfaz Web / Móvil]
+   │ Envío de datos de registro
+   ▼
+[API de User Subscription]
+   │
+   ├──► Guarda usuario en [Base de Datos PostgreSQL]
+   ├──► Envía correo de confirmación vía [Servicio SMTP]
+   ├──► Solicita pago a [Stripe API]
+   └──► Genera registro en [Servicio de Reportes]
+
+[Stripe API] ─► Confirma pago ─► [API] ─► [Usuario recibe notificación]
+
+```
+
+
 

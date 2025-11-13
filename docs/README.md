@@ -11,7 +11,6 @@ Este módulo permite garantizar una administración centralizada y segura de usu
 
 El **User Subscription Manager** interactúa con los siguientes componentes del ecosistema **SophiaSearch-2025**:
 
-.
 - **admin-interface:** Entrega el listado de usuarios registrados.
 
 - **user-interface:** Entrega de los tipos de usuarios y los términos y condiciones de uso.
@@ -22,16 +21,16 @@ El **User Subscription Manager** interactúa con los siguientes componentes del 
 
 La documentación técnica y operativa del subsistema se encuentra distribuida en los siguientes archivos:
 
-- [Arquitectura del subsistema](./docs/architecture.md)  
+- [Arquitectura del subsistema](./architecture.md)  
   Descripción de la estructura del sistema, diagramas de componentes, API y organización del repositorio.
 
-- [Requisitos del sistema](./docs/requirements.md)  
+- [Requisitos del sistema](./requirements.md)  
   Detalle de requerimientos funcionales y no funcionales del subsistema.
 
-- [Despliegue](./docs/deploy.md)  
+- [Despliegue](./deploy.md)  
   Instrucciones para la instalación, configuración y ejecución del subsistema.
 
-- [Despliegue](./docs/API-ENDPOINTS.md)
+- [Endpoints](./API-ENDPOINTS.md)  
   Instrucciones del uso de la API.
 
 ---
