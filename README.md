@@ -209,9 +209,10 @@ curl -X POST http://localhost:3000/api/scheduler/run
 └── README.md
 ```
 
-## � Documentación Adicional
+## 📚 Documentación Adicional
 
-Para más detalles sobre el sistema de notificaciones, consulta:
+Para más detalles sobre el sistema, consulta:
+- **[DIAGRAMA-REPOSITORIO.md](DIAGRAMA-REPOSITORIO.md)** - 📊 Diagrama completo del repositorio y sus scripts
 - **[docs/notificaciones.md](docs/notificaciones.md)** - Guía completa de notificaciones
 
 ## 🔍 Solución de Problemas
