@@ -32,6 +32,9 @@ La documentación técnica y operativa del subsistema se encuentra distribuida e
 
 - [Endpoints](./API-ENDPOINTS.md)  
   Instrucciones del uso de la API.
+  
+- [Decisiones](./decisiones.md)  
+  Decisiones mas importantes tomadas para este trabajo.
 
 ---
 
