@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # --- Python ---
 __pycache__/
 *.pyc
@@ -28,3 +29,45 @@ Desktop.ini
 # --- Logs y Bases de Datos locales ---
 *.log
 *.sqlite3
+=======
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+
+# Firebase credentials
+serviceAccountKey.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+*.tgz
+
+# Testing
+coverage/
+.nyc_output/
+>>>>>>> 048c414d7b18c741e58df3c4009f33f0a3cc58f8

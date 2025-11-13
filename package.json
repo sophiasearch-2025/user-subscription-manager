@@ -1,0 +1,25 @@
+{
+  "name": "user-subscription-system",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de usuarios y suscripciones",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "scheduler": "node -e \"require('./src/services/scheduler.service').runScheduledTasks()\"",
+    "test:notifications": "node src/scripts/test-notifications.js",
+    "seed": "node src/scripts/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "nodemailer": "^6.9.7",
+    "firebase-admin": "^12.0.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

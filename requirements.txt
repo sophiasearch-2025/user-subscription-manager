@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 fastapi>=0.100.0
 uvicorn[standard]>=0.20.0
 elasticsearch==8.11.1
@@ -6,3 +7,6 @@ pandas>=2.0.0
 passlib[bcrypt]
 email-validator>=2.0.0
 pydantic>=2.0.0
+=======
+# TODO: Agregar dependencias de Python si es necesario
+>>>>>>> 048c414d7b18c741e58df3c4009f33f0a3cc58f8
