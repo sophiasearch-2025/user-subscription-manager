@@ -36,6 +36,9 @@ La documentación técnica y operativa del subsistema se encuentra distribuida e
 - [Decisiones](./decisiones.md)  
   Decisiones mas importantes tomadas para este trabajo.
 
+- [Base de datos](./basededatos.md)  
+  Documentacion de las tablas de la base de datos
+
 ---
 
 ## 4. Estado del subsistema
