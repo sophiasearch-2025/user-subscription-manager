@@ -198,113 +198,14 @@ Abre: `http://172.105.21.15:3000/api/subscriptions`
 
 ---
 
-## Endpoints Disponibles para Otros Equipos
+## Endpoints Disponibles
 
 ### Base URL
 ```
 http://172.105.21.15:3000/api
 ```
 
-### Endpoints Principales
-
-#### Usuarios
-
-```bash
-# Listar usuarios
-GET http://172.105.21.15:3000/api/users
-
-# Obtener usuario específico
-GET http://172.105.21.15:3000/api/users/:uid
-
-# Crear usuario
-POST http://172.105.21.15:3000/api/users
-Content-Type: application/json
-
-{
-  "email": "usuario@ejemplo.com",
-  "name": "Usuario Ejemplo",
-  "company": "Empresa S.A."
-}
-
-# Actualizar usuario
-PUT http://172.105.21.15:3000/api/users/:uid
-
-# Eliminar usuario
-DELETE http://172.105.21.15:3000/api/users/:uid
-```
-
-#### Suscripciones
-
-```bash
-# Listar todas las suscripciones
-GET http://172.105.21.15:3000/api/subscriptions
-
-# Ver una suscripción específica
-GET http://172.105.21.15:3000/api/subscriptions/:id
-
-# Obtener suscripciones de un usuario
-GET http://172.105.21.15:3000/api/subscriptions/user/:userId
-
-# Crear nueva suscripción
-POST http://172.105.21.15:3000/api/subscriptions
-Content-Type: application/json
-
-{
-  "userId": "user123",
-  "planId": "plan_premium",
-  "userEmail": "usuario@ejemplo.com",
-  "userName": "Usuario Ejemplo",
-  "planName": "Plan Premium"
-}
-
-# Actualizar suscripción
-PUT http://172.105.21.15:3000/api/subscriptions/:id
-
-# Renovar suscripción
-POST http://172.105.21.15:3000/api/subscriptions/:id/renew
-
-# Eliminar suscripción
-DELETE http://172.105.21.15:3000/api/subscriptions/:id
-```
-
-#### Pagos
-
-```bash
-# Listar pagos
-GET http://172.105.21.15:3000/api/payments
-
-# Obtener pago específico
-GET http://172.105.21.15:3000/api/payments/:id
-
-# Obtener pagos de un usuario
-GET http://172.105.21.15:3000/api/payments/user/:userId
-
-# Crear pago
-POST http://172.105.21.15:3000/api/payments
-
-# Webhook de Stripe
-POST http://172.105.21.15:3000/api/payments/webhook/stripe
-```
-
-#### Scheduler (Tareas Programadas)
-
-```bash
-# Ejecutar todas las verificaciones
-POST http://172.105.21.15:3000/api/scheduler/run
-
-# Verificar suscripciones próximas a vencer
-POST http://172.105.21.15:3000/api/scheduler/check-expiring
-
-# Marcar suscripciones expiradas
-POST http://172.105.21.15:3000/api/scheduler/check-expired
-```
-
-#### Health Check
-
-```bash
-# Verificar estado de la API
-GET http://172.105.21.15:3000/api/health
-```
+**Documentación completa:** Ver `docs/API-ENDPOINTS.md` para referencia detallada de todos los endpoints.
 
 ---
 
@@ -463,29 +364,23 @@ API de Gestión de Usuarios y Suscripciones
 
 Base URL: http://172.105.21.15:3000/api
 
-Endpoints disponibles:
-• GET  /users               - Listar usuarios
-• GET  /users/:uid          - Obtener usuario
-• POST /users               - Crear usuario
-• GET  /subscriptions       - Listar suscripciones
-• GET  /subscriptions/:id   - Ver suscripción
-• POST /subscriptions       - Crear suscripción
-• PUT  /subscriptions/:id   - Actualizar suscripción
-• GET  /payments            - Listar pagos
-• POST /scheduler/run       - Ejecutar verificaciones
+Documentación completa de endpoints:
+📘 docs/API-ENDPOINTS.md
 
-Ejemplo de request:
+Endpoints principales:
+• Usuarios: GET, POST, PUT, DELETE /api/users
+• Suscripciones: GET, POST, PATCH, DELETE /api/subscriptions
+• Pagos: GET, POST /api/payments
+• Health check: GET /health
+
+Ejemplo de uso:
 curl -X POST http://172.105.21.15:3000/api/subscriptions \
   -H "Content-Type: application/json" \
   -d '{
     "userId":"user123",
     "planId":"plan_premium",
-    "userEmail":"usuario@ejemplo.com",
-    "userName":"Usuario Ejemplo",
-    "planName":"Plan Premium"
+    "userEmail":"usuario@ejemplo.com"
   }'
-
-Documentación completa: Ver README.md del proyecto
 ```
 
 ---

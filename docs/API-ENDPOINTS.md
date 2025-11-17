@@ -38,6 +38,126 @@ Información general de la API.
 
 ---
 
+## 👤 Usuarios
+
+### GET `/api/users`
+Obtener todos los usuarios.
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "uid": "user123",
+      "email": "usuario@ejemplo.com",
+      "name": "Usuario Ejemplo",
+      "company": "Empresa S.A.",
+      "createdAt": "2025-11-09T00:00:00.000Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+### GET `/api/users/:uid`
+Obtener un usuario específico por UID.
+
+**Parámetros:**
+- `uid` - ID único del usuario
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": {
+    "uid": "user123",
+    "email": "usuario@ejemplo.com",
+    "name": "Usuario Ejemplo",
+    "company": "Empresa S.A.",
+    "createdAt": "2025-11-09T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+### POST `/api/users`
+Crear un nuevo usuario.
+
+**Body:**
+```json
+{
+  "email": "usuario@ejemplo.com",
+  "name": "Usuario Ejemplo",
+  "company": "Empresa S.A."
+}
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "message": "Usuario creado exitosamente",
+  "data": {
+    "uid": "user123",
+    "email": "usuario@ejemplo.com",
+    "name": "Usuario Ejemplo",
+    "company": "Empresa S.A."
+  }
+}
+```
+
+---
+
+### PUT `/api/users/:uid`
+Actualizar un usuario existente.
+
+**Parámetros:**
+- `uid` - ID único del usuario
+
+**Body:**
+```json
+{
+  "name": "Nombre Actualizado",
+  "company": "Nueva Empresa"
+}
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "message": "Usuario actualizado exitosamente",
+  "data": {
+    "uid": "user123",
+    "email": "usuario@ejemplo.com",
+    "name": "Nombre Actualizado",
+    "company": "Nueva Empresa"
+  }
+}
+```
+
+---
+
+### DELETE `/api/users/:uid`
+Eliminar un usuario.
+
+**Parámetros:**
+- `uid` - ID único del usuario
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "message": "Usuario eliminado exitosamente"
+}
+```
+
+---
+
 ## 📋 Suscripciones
 
 ### POST `/api/subscriptions`
@@ -298,6 +418,11 @@ Ejecutar manualmente la verificación de notificaciones.
 |--------|----------|-------------|-----|
 | **GET** | `/health` | Health check | Monitoreo |
 | **GET** | `/` | Info de la API | Documentación |
+| **GET** | `/api/users` | Listar usuarios | Otros sistemas |
+| **GET** | `/api/users/:uid` | Obtener usuario | Otros sistemas |
+| **POST** | `/api/users` | Crear usuario | Otros sistemas |
+| **PUT** | `/api/users/:uid` | Actualizar usuario | Otros sistemas |
+| **DELETE** | `/api/users/:uid` | Eliminar usuario | Otros sistemas |
 | **POST** | `/api/subscriptions` | Crear suscripción | Otros sistemas |
 | **GET** | `/api/subscriptions` | Listar suscripciones | Otros sistemas |
 | **GET** | `/api/subscriptions/:id` | Obtener suscripción | Otros sistemas |
