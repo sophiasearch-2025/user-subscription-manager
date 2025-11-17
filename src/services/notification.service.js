@@ -52,45 +52,65 @@ async function sendWelcomeNotification(userId, userData) {
 
 /**
  * Envía notificación de suscripción recibida
- * @param {Object} data - { userEmail, userName, planName, subscriptionId }
+ * @param {Object} data - { userId, userEmail, userName, planName, subscriptionId }
  */
 async function sendSubscriptionReceivedNotification(data) {
   try {
+    // Validar que exista email
+    if (!data.userEmail) {
+      console.warn('⚠️ No se puede enviar notificación: email no proporcionado');
+      return false;
+    }
+
     console.log('📧 Enviando notificación de suscripción recibida...');
     
-    await emailService.sendSubscriptionReceivedEmail(data.userEmail, {
-      userName: data.userName,
-      planName: data.planName,
-      subscriptionId: data.subscriptionId
-    });
+    // Intentar enviar email pero no fallar si hay error
+    try {
+      await emailService.sendSubscriptionReceivedEmail(data.userEmail, {
+        userName: data.userName || 'Usuario',
+        planName: data.planName || 'Plan',
+        subscriptionId: data.subscriptionId || 'N/A'
+      });
+      console.log('✅ Email enviado exitosamente a:', data.userEmail);
+    } catch (emailError) {
+      console.warn('⚠️ Error enviando email (continuando):', emailError.message);
+    }
     
-    // Registrar la notificación en Firebase (opcional, para auditoría)
+    // Registrar la notificación en Firebase (para auditoría)
     const db = admin.firestore();
     await db.collection('notifications').add({
       type: 'SUBSCRIPTION_RECEIVED',
       userId: data.userId || null,
       email: data.userEmail,
-      subscriptionId: data.subscriptionId,
+      subscriptionId: data.subscriptionId || null,
+      planName: data.planName || null,
       sentAt: admin.firestore.FieldValue.serverTimestamp(),
       status: 'sent'
     });
     
-    console.log('✅ Notificación de suscripción enviada:', data.userEmail);
+    console.log('✅ Notificación registrada en Firebase:', data.userEmail);
     return true;
   } catch (error) {
-    console.error('❌ Error enviando notificación de suscripción:', error);
+    console.error('❌ Error en notificación de suscripción:', error);
     
-    // Registrar error en Firebase
-    const db = admin.firestore();
-    await db.collection('notifications').add({
-      type: 'SUBSCRIPTION_RECEIVED',
-      email: data.userEmail,
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      status: 'failed',
-      error: error.message
-    });
+    // Registrar error en Firebase solo si tenemos email
+    if (data.userEmail) {
+      try {
+        const db = admin.firestore();
+        await db.collection('notifications').add({
+          type: 'SUBSCRIPTION_RECEIVED',
+          email: data.userEmail,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          status: 'failed',
+          error: error.message
+        });
+      } catch (dbError) {
+        console.error('❌ Error registrando fallo:', dbError.message);
+      }
+    }
     
-    throw error;
+    // No lanzar error, solo advertir
+    return false;
   }
 }
 

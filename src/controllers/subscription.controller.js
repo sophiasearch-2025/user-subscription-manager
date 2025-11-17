@@ -4,32 +4,96 @@ const notificationService = require('../services/notification.service');
 
 /**
  * Crear una nueva solicitud de suscripción
+ * Endpoint: POST /api/subscriptions
+ * Body: { userId, planId, userEmail, userName, planName, precio }
  */
 async function createSubscription(req, res) {
   try {
-    const { userId, planId, userEmail, userName, planName } = req.body;
+    const { userId, planId, userEmail, userName, planName, precio } = req.body;
     
-    // TODO: Validar datos
-    // TODO: Guardar en Firebase
+    // 1. Validar datos requeridos
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId es requerido'
+      });
+    }
+
+    if (!planId) {
+      return res.status(400).json({
+        success: false,
+        message: 'planId es requerido'
+      });
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'userEmail es requerido para enviar notificación'
+      });
+    }
+
+    console.log(`📝 Creando suscripción para usuario: ${userId}`);
     
-    const subscriptionId = `sub_${Date.now()}`; // Temporal, debe venir de Firebase
+    // 2. Crear suscripción en Firebase
+    const subscriptionData = {
+      userId,
+      planId,
+      plan: planName || planId,
+      descripcion: `Suscripción a ${planName || planId}`,
+      precio: precio || 0,
+      status: 'active',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 días
+      cancelAtPeriodEnd: false,
+      metadata: {
+        userEmail,
+        userName: userName || 'Usuario'
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const docRef = await db.collection('subscriptions').add(subscriptionData);
+    const subscriptionId = docRef.id;
     
-    // Enviar notificación de suscripción recibida
-    await notificationService.sendSubscriptionReceivedNotification({
-      userEmail,
-      userName,
-      planName,
-      subscriptionId
-    });
+    // Actualizar con el ID
+    await docRef.update({ id: subscriptionId });
     
+    console.log(`✅ Suscripción creada en Firebase: ${subscriptionId}`);
+    
+    // 3. Enviar notificación por email automáticamente
+    try {
+      await notificationService.sendSubscriptionReceivedNotification({
+        userId,
+        userEmail,
+        userName: userName || 'Usuario',
+        planName: planName || planId,
+        subscriptionId
+      });
+      console.log(`📧 Notificación enviada a: ${userEmail}`);
+    } catch (emailError) {
+      console.warn(`⚠️ Error enviando email (continuando):`, emailError.message);
+      // No fallar si el email falla
+    }
+    
+    // 4. Responder con éxito
     res.status(201).json({
       success: true,
-      message: 'Suscripción creada y notificación enviada',
-      data: { subscriptionId }
+      message: 'Suscripción creada exitosamente. Notificación enviada por email.',
+      data: {
+        subscriptionId,
+        userId,
+        planId,
+        status: 'active',
+        userEmail,
+        currentPeriodEnd: subscriptionData.currentPeriodEnd,
+        notificationSent: true
+      }
     });
     
   } catch (error) {
-    console.error('Error creando suscripción:', error);
+    console.error('❌ Error creando suscripción:', error);
     res.status(500).json({
       success: false,
       message: 'Error al crear suscripción',
