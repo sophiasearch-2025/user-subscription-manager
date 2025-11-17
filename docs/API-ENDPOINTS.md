@@ -43,16 +43,33 @@ Información general de la API.
 ### POST `/api/subscriptions`
 Crear una nueva suscripción.
 
-**Body:**
+**Body (campos requeridos):**
 ```json
 {
   "userId": "user123",
-  "planId": "premium",
+  "planId": "plan_premium",
+  "userEmail": "usuario@ejemplo.com"
+}
+```
+
+**Body (campos opcionales):**
+```json
+{
+  "userName": "Usuario Ejemplo",
   "planName": "Plan Premium",
-  "startDate": "2025-11-09",
-  "endDate": "2025-12-09",
-  "price": 9999,
-  "status": "active"
+  "precio": 99.99
+}
+```
+
+**Body completo (ejemplo):**
+```json
+{
+  "userId": "user123",
+  "planId": "plan_premium",
+  "userEmail": "usuario@ejemplo.com",
+  "userName": "Juan Pérez",
+  "planName": "Plan Premium",
+  "precio": 99.99
 }
 ```
 
@@ -60,16 +77,24 @@ Crear una nueva suscripción.
 ```json
 {
   "success": true,
-  "message": "Suscripción creada exitosamente",
+  "message": "Suscripción creada exitosamente. Notificación enviada por email.",
   "data": {
-    "id": "sub_abc123",
+    "subscriptionId": "abc123xyz",
     "userId": "user123",
-    "planId": "premium",
+    "planId": "plan_premium",
     "status": "active",
-    "createdAt": "2025-11-09T20:00:00.000Z"
+    "userEmail": "usuario@ejemplo.com",
+    "currentPeriodEnd": "2025-12-17T12:00:00.000Z",
+    "notificationSent": true
   }
 }
 ```
+
+**Funcionalidad automática:**
+- ✅ Guarda la suscripción en Firebase
+- ✅ Envía email de confirmación al usuario
+- ✅ Registra la notificación en Firebase (auditoría)
+- ✅ Establece período de 30 días por defecto
 
 ---
 
@@ -125,8 +150,63 @@ Obtener una suscripción específica por ID.
 
 ---
 
-### POST `/api/subscriptions/:id/renew`
+### PATCH `/api/subscriptions/:id` ⭐ **NUEVO**
+Actualizar cualquier campo de una suscripción (especialmente el status).
+
+**Parámetros:**
+- `id` - ID de la suscripción
+
+**Body (campos opcionales):**
+```json
+{
+  "status": "active",
+  "precio": 129.99,
+  "plan": "Plan Premium Plus",
+  "descripcion": "Actualización de plan",
+  "currentPeriodEnd": "2026-01-17T00:00:00.000Z",
+  "cancelAtPeriodEnd": false,
+  "metadata": {
+    "customField": "valor"
+  }
+}
+```
+
+**Campos actualizables:**
+- `status` - Estado: `active`, `paused`, `cancelled`, `expired`, `pending`
+- `precio` - Precio de la suscripción
+- `plan` - Nombre del plan
+- `descripcion` - Descripción
+- `currentPeriodEnd` - Fecha de vencimiento (ISO 8601)
+- `cancelAtPeriodEnd` - Cancelar al final del período
+- `metadata` - Metadatos adicionales
+
+**Campos protegidos (se ignoran):**
+- `id`, `createdAt`, `userId`
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "message": "Suscripción actualizada exitosamente",
+  "data": {
+    "id": "sub_abc123",
+    "userId": "user123",
+    "status": "active",
+    "precio": 129.99,
+    "plan": "Plan Premium Plus",
+    "updatedAt": "2025-11-17T16:00:00.000Z"
+  }
+}
+```
+
+**Nota:** Si el status cambia a `active`, se envía automáticamente un email de renovación al usuario.
+
+---
+
+### POST `/api/subscriptions/:id/renew` ⚠️ **DEPRECADO**
 Renovar una suscripción existente.
+
+> **Recomendación:** Usar `PATCH /api/subscriptions/:id` con `{"status": "active"}` en su lugar.
 
 **Parámetros:**
 - `id` - ID de la suscripción
@@ -134,7 +214,9 @@ Renovar una suscripción existente.
 **Body:**
 ```json
 {
-  "duration": 30
+  "userEmail": "usuario@ejemplo.com",
+  "userName": "Usuario",
+  "planName": "Plan Premium"
 }
 ```
 
@@ -142,11 +224,9 @@ Renovar una suscripción existente.
 ```json
 {
   "success": true,
-  "message": "Suscripción renovada exitosamente",
+  "message": "Suscripción renovada y notificación enviada",
   "data": {
-    "id": "sub_abc123",
-    "newEndDate": "2026-01-09T00:00:00.000Z",
-    "status": "active"
+    "newExpirationDate": "2026-01-09T00:00:00.000Z"
   }
 }
 ```
@@ -221,7 +301,8 @@ Ejecutar manualmente la verificación de notificaciones.
 | **POST** | `/api/subscriptions` | Crear suscripción | Otros sistemas |
 | **GET** | `/api/subscriptions` | Listar suscripciones | Otros sistemas |
 | **GET** | `/api/subscriptions/:id` | Obtener suscripción | Otros sistemas |
-| **POST** | `/api/subscriptions/:id/renew` | Renovar suscripción | Otros sistemas |
+| **PATCH** | `/api/subscriptions/:id` | **Actualizar suscripción** ⭐ | **Otros sistemas** |
+| **POST** | `/api/subscriptions/:id/renew` | Renovar suscripción ⚠️ | Deprecado |
 | **DELETE** | `/api/subscriptions/:id` | Cancelar suscripción | Otros sistemas |
 | **POST** | `/api/subscriptions/check-expiring` | Verificar expiración | Interno/Cron |
 | **POST** | `/api/admin/run-notifications` | Ejecutar notificaciones | Admin/Cron |
@@ -237,12 +318,43 @@ curl -X POST http://172.105.21.15:3000/api/subscriptions \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "user123",
-    "planId": "premium",
+    "planId": "plan_premium",
+    "userEmail": "usuario@ejemplo.com",
+    "userName": "Juan Pérez",
     "planName": "Plan Premium",
-    "startDate": "2025-11-09",
-    "endDate": "2025-12-09",
-    "price": 9999,
-    "status": "active"
+    "precio": 99.99
+  }'
+```
+
+### Actualizar status de una suscripción (NUEVO) ⭐
+
+```bash
+# Activar/Renovar
+curl -X PATCH http://172.105.21.15:3000/api/subscriptions/abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"status": "active"}'
+
+# Pausar
+curl -X PATCH http://172.105.21.15:3000/api/subscriptions/abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"status": "paused"}'
+
+# Cancelar
+curl -X PATCH http://172.105.21.15:3000/api/subscriptions/abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"status": "cancelled"}'
+```
+
+### Actualizar múltiples campos
+
+```bash
+curl -X PATCH http://172.105.21.15:3000/api/subscriptions/abc123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "active",
+    "precio": 129.99,
+    "plan": "Plan Premium Plus",
+    "descripcion": "Plan actualizado"
   }'
 ```
 
@@ -260,10 +372,22 @@ curl "http://172.105.21.15:3000/api/subscriptions?userId=user123&status=active"
 
 ### Renovar una suscripción
 
+**Método recomendado (PATCH):**
 ```bash
-curl -X POST http://172.105.21.15:3000/api/subscriptions/sub_abc123/renew \
+curl -X PATCH http://172.105.21.15:3000/api/subscriptions/abc123 \
   -H "Content-Type: application/json" \
-  -d '{"duration": 30}'
+  -d '{"status": "active"}'
+```
+
+**Método antiguo (deprecado):**
+```bash
+curl -X POST http://172.105.21.15:3000/api/subscriptions/abc123/renew \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userEmail": "usuario@ejemplo.com",
+    "userName": "Usuario",
+    "planName": "Plan Premium"
+  }'
 ```
 
 ### Cancelar una suscripción
@@ -331,10 +455,11 @@ El sistema envía emails automáticamente:
 ## 📝 Notas para Otros Sistemas
 
 1. **Base URL:** Usa `http://172.105.21.15:3000` en producción
-2. **Content-Type:** Siempre envía `Content-Type: application/json` en POST/PUT
+2. **Content-Type:** Siempre envía `Content-Type: application/json` en POST/PATCH
 3. **IDs:** Los IDs de suscripciones se generan automáticamente por Firestore
 4. **Fechas:** Usa formato ISO 8601: `YYYY-MM-DD` o `YYYY-MM-DDTHH:mm:ss.sssZ`
-5. **Status:** Valores válidos: `active`, `expired`, `cancelled`, `pending`
+5. **Status:** Valores válidos: `active`, `paused`, `cancelled`, `expired`, `pending`
+6. **PATCH vs POST:** Usa `PATCH /api/subscriptions/:id` en lugar de `POST /:id/renew` para actualizar
 
 ---
 
@@ -343,16 +468,35 @@ El sistema envía emails automáticamente:
 Para integrar con otros sistemas:
 
 1. **Crear suscripción** cuando un usuario compra
-2. **Consultar estado** periódicamente si es necesario
-3. **Renovar** cuando el usuario renueva su plan
+   - `POST /api/subscriptions` con `userId`, `planId`, `userEmail`
+   - El sistema envía email automáticamente
+
+2. **Actualizar status** cuando cambia el estado
+   - `PATCH /api/subscriptions/:id` con `{"status": "active"}` para renovar
+   - `PATCH /api/subscriptions/:id` con `{"status": "paused"}` para pausar
+   - `PATCH /api/subscriptions/:id` con `{"status": "cancelled"}` para cancelar
+
+3. **Consultar estado** periódicamente si es necesario
+   - `GET /api/subscriptions/:id` para una específica
+   - `GET /api/subscriptions?userId=xxx` para un usuario
+
 4. **Cancelar** cuando el usuario cancela
+   - `DELETE /api/subscriptions/:id` o `PATCH` con `status: "cancelled"`
 
 El sistema se encarga automáticamente de:
-- ✅ Enviar notificaciones de expiración
+- ✅ Enviar notificaciones de expiración (7, 3, 1 día antes)
+- ✅ Enviar email al crear suscripción
+- ✅ Enviar email al cambiar status a `active` (renovación)
 - ✅ Marcar suscripciones como expiradas
 - ✅ Registrar todo en Firestore
 
 ---
 
-**Última actualización:** 9 de noviembre de 2025  
+**Última actualización:** 17 de noviembre de 2025  
 **Versión API:** 1.0.0
+
+**Cambios recientes:**
+- ✨ Agregado `PATCH /api/subscriptions/:id` para actualizar cualquier campo
+- ✨ Envío automático de email al crear suscripción
+- ✨ Envío automático de email al cambiar status a `active`
+- ⚠️ `POST /:id/renew` marcado como deprecado (usar PATCH)

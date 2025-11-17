@@ -243,12 +243,114 @@ async function getSubscriptionById(req, res) {
 }
 
 /**
+ * Actualizar una suscripción (PATCH)
+ * Permite actualizar cualquier campo, especialmente el status
+ * Endpoint: PATCH /api/subscriptions/:id
+ */
+async function updateSubscription(req, res) {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Validar que el ID existe
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de suscripción es requerido'
+      });
+    }
+
+    // Verificar que la suscripción existe
+    const docRef = db.collection('subscriptions').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Suscripción no encontrada'
+      });
+    }
+
+    const currentData = doc.data();
+
+    // Preparar datos para actualizar
+    const updateData = {
+      ...updates,
+      updatedAt: new Date()
+    };
+
+    // Remover campos que no se deben actualizar directamente
+    delete updateData.id;
+    delete updateData.createdAt;
+
+    console.log(`📝 Actualizando suscripción ${id}:`, updateData);
+
+    // Actualizar en Firebase
+    await docRef.update(updateData);
+
+    // Obtener datos actualizados
+    const updatedDoc = await docRef.get();
+    const updatedData = { id: updatedDoc.id, ...updatedDoc.data() };
+
+    // Si se actualizó el status a 'active' (renovación), enviar notificación
+    if (updates.status === 'active' && currentData.status !== 'active') {
+      const metadata = currentData.metadata || {};
+      if (metadata.userEmail) {
+        try {
+          await notificationService.sendPlanRenewalNotification({
+            userId: currentData.userId,
+            userEmail: metadata.userEmail,
+            userName: metadata.userName || 'Usuario',
+            planName: currentData.plan || currentData.planId,
+            newExpirationDate: updatedData.currentPeriodEnd?.toDate?.() || new Date()
+          });
+          console.log(`📧 Notificación de renovación enviada a: ${metadata.userEmail}`);
+        } catch (emailError) {
+          console.warn('⚠️ Error enviando email de renovación:', emailError.message);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Suscripción actualizada exitosamente',
+      data: updatedData
+    });
+
+  } catch (error) {
+    console.error('❌ Error actualizando suscripción:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar suscripción',
+      error: error.message
+    });
+  }
+}
+
+/**
  * Cancelar una suscripción
  */
 async function cancelSubscription(req, res) {
   try {
     const { id } = req.params;
-    // TODO: Actualizar en Firebase
+    
+    // Usar updateSubscription internamente
+    const docRef = db.collection('subscriptions').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Suscripción no encontrada'
+      });
+    }
+
+    await docRef.update({
+      status: 'cancelled',
+      cancelAtPeriodEnd: true,
+      updatedAt: new Date()
+    });
+
     res.json({
       success: true,
       message: 'Suscripción cancelada'
@@ -263,6 +365,7 @@ async function cancelSubscription(req, res) {
 
 module.exports = {
   createSubscription,
+  updateSubscription,
   renewSubscription,
   checkExpiringSubscriptions,
   getAllSubscriptions,

@@ -12,7 +12,10 @@ router.get('/', subscriptionController.getAllSubscriptions);
 // Obtener suscripción por ID
 router.get('/:id', subscriptionController.getSubscriptionById);
 
-// Renovar suscripción
+// Actualizar suscripción (PATCH - RESTful)
+router.patch('/:id', subscriptionController.updateSubscription);
+
+// Renovar suscripción (deprecated - usar PATCH en su lugar)
 router.post('/:id/renew', subscriptionController.renewSubscription);
 
 // Cancelar suscripción
