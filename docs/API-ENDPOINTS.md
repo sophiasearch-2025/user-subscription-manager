@@ -85,74 +85,176 @@ Obtener un usuario específico por UID.
 ---
 
 ### POST `/api/users`
-Crear un nuevo usuario.
+Crear un nuevo usuario con comprobante de pago (solicitud pendiente).
 
-**Body:**
-```json
-{
-  "email": "usuario@ejemplo.com",
-  "name": "Usuario Ejemplo",
-  "company": "Empresa S.A."
-}
-```
+**Content-Type:** `multipart/form-data`
 
-**Respuesta:**
+**Campos del formulario (requeridos):**
+- `email` (string) - Email del usuario (único)
+- `username` (string) - Nombre de usuario (único)
+- `password` (string) - Contraseña (mínimo 6 caracteres)
+- `comprobante` (file) - Foto del comprobante de pago (JPG, PNG, WEBP, max 5MB)
+
+**Campos del formulario (opcionales):**
+- `name` (string) - Nombre completo
+- `company` (string) - Empresa
+
+**Validaciones:**
+- ✅ `email` es requerido y único
+- ✅ `username` es requerido y único
+- ✅ `password` es requerida (mínimo 6 caracteres)
+- ✅ `comprobante` es requerido (imagen JPG/PNG/WEBP, máximo 5MB)
+- ✅ La contraseña se hashea con bcrypt antes de guardar
+- ✅ El comprobante se convierte a binario (base64) y se sube a Firebase Storage
+
+**Respuesta (201):**
 ```json
 {
   "success": true,
-  "message": "Usuario creado exitosamente",
+  "message": "Usuario registrado con comprobante. Solicitud pendiente de aprobación.",
   "data": {
-    "uid": "user123",
+    "uid": "user_1732454123_abc123",
     "email": "usuario@ejemplo.com",
+    "username": "usuario123",
     "name": "Usuario Ejemplo",
-    "company": "Empresa S.A."
+    "company": "Empresa S.A.",
+    "comprobanteUrl": "https://storage.googleapis.com/.../comprobantes/...",
+    "solicitudAprobada": false
   }
 }
 ```
 
----
-
-### PUT `/api/users/:uid`
-Actualizar un usuario existente.
-
-**Parámetros:**
-- `uid` - ID único del usuario
-
-**Body:**
+**Errores comunes:**
 ```json
+// Sin comprobante
 {
-  "name": "Nombre Actualizado",
-  "company": "Nueva Empresa"
+  "success": false,
+  "message": "El comprobante de pago es requerido"
+}
+
+// Formato inválido
+{
+  "success": false,
+  "message": "Solo se permiten imágenes (JPG, PNG, WEBP)"
+}
+
+// Username duplicado
+{
+  "success": false,
+  "message": "El username ya está en uso"
 }
 ```
+
+**Notas importantes:**
+- 📸 El comprobante se guarda en Firebase Storage como binario (base64)
+- 🔒 La contraseña NO se devuelve en la respuesta por seguridad
+- ⏳ El usuario se crea con `solicitudAprobada: false`
+- ✉️ Un administrador debe aprobar la solicitud para que el usuario reciba el email de bienvenida
+- 👀 El admin puede ver el comprobante en la URL proporcionada para validarlo
+
+---
+
+### GET `/api/users/pending`
+Obtener usuarios con solicitudes pendientes (Admin).
 
 **Respuesta:**
 ```json
 {
   "success": true,
-  "message": "Usuario actualizado exitosamente",
+  "data": [
+    {
+      "uid": "user_123",
+      "email": "pendiente@ejemplo.com",
+      "username": "usuario_pendiente",
+      "name": "Usuario Pendiente",
+      "company": "Empresa ABC",
+      "comprobanteUrl": "https://storage.googleapis.com/.../comprobantes/...",
+      "solicitudAprobada": false,
+      "createdAt": "2025-11-24T10:00:00.000Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+**Nota:** 
+- El comprobante NO se devuelve en la lista (es binario/base64, muy grande)
+- Se incluye `comprobanteInfo` con metadata del archivo
+- Para ver el comprobante, usar: `GET /api/users/:uid/comprobante`
+
+---
+
+### GET `/api/users/:uid/comprobante`
+Ver el comprobante de pago de un usuario (Admin).
+
+**Parámetros:**
+- `uid` - ID único del usuario
+
+**Respuesta:**
+- Devuelve la imagen directamente (JPG/PNG/WEBP)
+- Se puede abrir en el navegador o descargar
+
+**Ejemplo:**
+```bash
+# Ver en navegador
+http://172.105.21.15:3000/api/users/user_123/comprobante
+
+# Descargar con curl
+curl http://172.105.21.15:3000/api/users/user_123/comprobante -o comprobante.png
+```
+
+---
+
+### PATCH `/api/users/:uid/approve` ⭐
+Aprobar solicitud de usuario y enviar email de bienvenida (Admin).
+
+**Parámetros:**
+- `uid` - ID único del usuario
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "message": "Usuario aprobado exitosamente. Email de bienvenida enviado.",
   "data": {
-    "uid": "user123",
+    "uid": "user_123",
     "email": "usuario@ejemplo.com",
-    "name": "Nombre Actualizado",
-    "company": "Nueva Empresa"
+    "solicitudAprobada": true,
+    "emailSent": true
   }
 }
 ```
 
+**Funcionalidad automática:**
+- ✅ Cambia `solicitudAprobada` a `true`
+- ✅ Cambia `estado` a `active`
+- ✅ **Envía email de bienvenida al usuario**
+- ✅ Registra la notificación en Firebase
+
 ---
 
-### DELETE `/api/users/:uid`
-Eliminar un usuario.
+### PATCH `/api/users/:uid/reject`
+Rechazar solicitud de usuario (Admin).
 
 **Parámetros:**
 - `uid` - ID único del usuario
+
+**Body (opcional):**
+```json
+{
+  "motivo": "Comprobante inválido"
+}
+```
 
 **Respuesta:**
 ```json
 {
   "success": true,
-  "message": "Usuario eliminado exitosamente"
+  "message": "Solicitud rechazada",
+  "data": {
+    "uid": "user_123",
+    "estado": "rejected"
+  }
 }
 ```
 
@@ -418,11 +520,13 @@ Ejecutar manualmente la verificación de notificaciones.
 |--------|----------|-------------|-----|
 | **GET** | `/health` | Health check | Monitoreo |
 | **GET** | `/` | Info de la API | Documentación |
-| **GET** | `/api/users` | Listar usuarios | Otros sistemas |
-| **GET** | `/api/users/:uid` | Obtener usuario | Otros sistemas |
-| **POST** | `/api/users` | Crear usuario | Otros sistemas |
-| **PUT** | `/api/users/:uid` | Actualizar usuario | Otros sistemas |
-| **DELETE** | `/api/users/:uid` | Eliminar usuario | Otros sistemas |
+| **GET** | `/api/users` | Listar usuarios | Admin |
+| **GET** | `/api/users/:uid` | Obtener usuario | Admin |
+| **POST** | `/api/users` | **Crear usuario + Comprobante** 📸 | **Frontend** |
+| **GET** | `/api/users/pending` | Listar solicitudes pendientes | Admin |
+| **GET** | `/api/users/:uid/comprobante` | **Ver comprobante (imagen)** 🖼️ | **Admin** |
+| **PATCH** | `/api/users/:uid/approve` | **Aprobar usuario + Email** ⭐ | **Admin** |
+| **PATCH** | `/api/users/:uid/reject` | Rechazar solicitud | Admin |
 | **POST** | `/api/subscriptions` | Crear suscripción | Otros sistemas |
 | **GET** | `/api/subscriptions` | Listar suscripciones | Otros sistemas |
 | **GET** | `/api/subscriptions/:id` | Obtener suscripción | Otros sistemas |
@@ -435,6 +539,78 @@ Ejecutar manualmente la verificación de notificaciones.
 ---
 
 ## 🚀 Ejemplos de Uso
+
+### Registrar un nuevo usuario con comprobante (solicitud pendiente)
+
+```bash
+# Con cURL
+curl -X POST http://172.105.21.15:3000/api/users \
+  -F "email=nuevo@ejemplo.com" \
+  -F "username=nuevo_usuario" \
+  -F "password=micontraseña123" \
+  -F "name=Usuario Nuevo" \
+  -F "company=Mi Empresa" \
+  -F "comprobante=@/ruta/a/tu/comprobante.jpg"
+```
+
+**Ejemplo con JavaScript (Frontend):**
+```javascript
+const formData = new FormData();
+formData.append('email', 'nuevo@ejemplo.com');
+formData.append('username', 'nuevo_usuario');
+formData.append('password', 'micontraseña123');
+formData.append('name', 'Usuario Nuevo');
+formData.append('company', 'Mi Empresa');
+formData.append('comprobante', fileInput.files[0]); // File del input
+
+const response = await fetch('http://172.105.21.15:3000/api/users', {
+  method: 'POST',
+  body: formData
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+**Ejemplo con React:**
+```javascript
+const [file, setFile] = useState(null);
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData();
+  formData.append('email', email);
+  formData.append('username', username);
+  formData.append('password', password);
+  formData.append('name', name);
+  formData.append('company', company);
+  formData.append('comprobante', file);
+
+  const response = await fetch('http://172.105.21.15:3000/api/users', {
+    method: 'POST',
+    body: formData
+  });
+
+  const data = await response.json();
+  if (data.success) {
+    alert('Usuario registrado! Pendiente de aprobación.');
+  }
+};
+```
+
+### Ver solicitudes pendientes (Admin)
+
+```bash
+curl http://172.105.21.15:3000/api/users/pending
+```
+
+### Aprobar usuario y enviar email (Admin) ⭐
+
+```bash
+# Esto aprueba al usuario Y envía el email de bienvenida automáticamente
+curl -X PATCH http://172.105.21.15:3000/api/users/user_123/approve
+```
 
 ### Crear una suscripción desde otro sistema
 
@@ -528,7 +704,71 @@ curl -X DELETE http://172.105.21.15:3000/api/subscriptions/sub_abc123
 - ✅ **CORS habilitado** - Permite requests desde cualquier origen
 - ✅ **Rate limiting** - Máximo 100 requests por IP cada 15 minutos en `/api/*`
 - ✅ **Helmet.js** - Headers de seguridad configurados
+- ✅ **Contraseñas hasheadas** - Bcrypt con 10 salt rounds
+- ✅ **Contraseñas no expuestas** - No se devuelven en ninguna respuesta
 - ⚠️ **Sin autenticación** - Actualmente no requiere tokens (auth no implementado)
+
+---
+
+## 📸 Manejo de Comprobantes de Pago
+
+### Proceso de Subida
+
+1. **Frontend envía imagen** como `multipart/form-data`
+2. **Backend recibe archivo** en memoria (buffer)
+3. **Conversión a binario (base64):**
+   - Buffer → Base64 string
+   - Se guarda directamente en Firestore
+4. **Metadata guardada:**
+   - `comprobanteBase64`: imagen en formato base64
+   - `comprobanteInfo`: { filename, mimetype, size, uploadedAt }
+5. **Visualización:**
+   - El admin accede a `GET /api/users/:uid/comprobante`
+   - El backend convierte base64 → imagen
+   - Se muestra la imagen directamente
+
+### Formatos Aceptados
+- ✅ JPG / JPEG
+- ✅ PNG
+- ✅ WEBP
+- ❌ Tamaño máximo: 5MB
+
+### Almacenamiento
+
+**Firestore (campos en usuario):**
+```json
+{
+  "uid": "user_123",
+  "email": "usuario@ejemplo.com",
+  "username": "usuario123",
+  "comprobanteBase64": "iVBORw0KGgoAAAANSUh...", // Binario
+  "comprobanteInfo": {
+    "filename": "comprobante.jpg",
+    "mimetype": "image/jpeg",
+    "size": 245678,
+    "uploadedAt": "2025-11-24T10:00:00.000Z"
+  },
+  "solicitudAprobada": false
+}
+```
+
+### Validación por Admin
+
+1. Admin obtiene usuarios pendientes: `GET /api/users/pending`
+2. Admin ve `comprobanteInfo` con metadata del archivo
+3. Admin abre: `GET /api/users/:uid/comprobante` en navegador
+4. El navegador muestra la imagen directamente
+5. Admin valida que el comprobante sea legítimo
+6. Admin aprueba o rechaza según la validación
+
+### Seguridad del Comprobante
+
+- 🔒 Comprobante guardado como base64 en Firestore
+- 📄 Metadata separada del binario
+- 🚫 El base64 NO se devuelve en listados (muy grande)
+- 👀 Solo accesible vía endpoint específico
+- 🔮 En producción: agregar autenticación para endpoint de comprobante
+- 🗑️ Futura funcionalidad: eliminar comprobantes rechazados
 
 ---
 
@@ -579,18 +819,54 @@ El sistema envía emails automáticamente:
 
 ## 📝 Notas para Otros Sistemas
 
+### Generales
 1. **Base URL:** Usa `http://172.105.21.15:3000` en producción
-2. **Content-Type:** Siempre envía `Content-Type: application/json` en POST/PATCH
-3. **IDs:** Los IDs de suscripciones se generan automáticamente por Firestore
+2. **Content-Type:** 
+   - `application/json` para suscripciones y aprobaciones
+   - `multipart/form-data` para registro de usuarios (con comprobante)
+3. **IDs:** Los IDs se generan automáticamente
 4. **Fechas:** Usa formato ISO 8601: `YYYY-MM-DD` o `YYYY-MM-DDTHH:mm:ss.sssZ`
-5. **Status:** Valores válidos: `active`, `paused`, `cancelled`, `expired`, `pending`
-6. **PATCH vs POST:** Usa `PATCH /api/subscriptions/:id` en lugar de `POST /:id/renew` para actualizar
+
+### Usuarios
+1. **Registro requiere comprobante:** El frontend debe enviar una imagen del comprobante
+2. **Campos únicos:** `email` y `username` deben ser únicos
+3. **Contraseña:** Mínimo 6 caracteres, se hashea automáticamente
+4. **Comprobante:** JPG/PNG/WEBP, máximo 5MB, se convierte a binario
+5. **Aprobación manual:** El admin debe aprobar antes de que el usuario reciba email
+
+### Suscripciones
+1. **Status válidos:** `active`, `paused`, `cancelled`, `expired`, `pending`
+2. **PATCH vs POST:** Usa `PATCH /api/subscriptions/:id` en lugar de `POST /:id/renew`
+3. **Emails automáticos:** Se envían al crear y al cambiar status a `active`
 
 ---
 
 ## 🔄 Integración Recomendada
 
-Para integrar con otros sistemas:
+### Flujo de Usuario Nuevo
+
+1. **Usuario se registra** en el frontend con comprobante
+   - `POST /api/users` (multipart/form-data)
+   - Campos: `email`, `username`, `password`, `comprobante` (imagen)
+   - Opcional: `name`, `company`
+   - El comprobante se convierte a binario (base64) y se sube a Firebase Storage
+   - El usuario se crea con `solicitudAprobada: false`
+   - NO se envía email todavía
+
+2. **Admin revisa solicitudes**
+   - `GET /api/users/pending` para ver solicitudes pendientes
+   - Admin ve los datos del usuario
+   - Admin hace clic en `comprobanteUrl` para ver la foto del comprobante
+   - Admin valida que el comprobante sea válido
+
+3. **Admin aprueba o rechaza**
+   - **Aprobar:** `PATCH /api/users/:uid/approve`
+     - Cambia `solicitudAprobada` a `true`
+     - **✉️ Se envía email de bienvenida automáticamente**
+   - **Rechazar:** `PATCH /api/users/:uid/reject` (con motivo opcional)
+     - Cambia `estado` a `rejected`
+
+### Flujo de Suscripciones
 
 1. **Crear suscripción** cuando un usuario compra
    - `POST /api/subscriptions` con `userId`, `planId`, `userEmail`
@@ -608,7 +884,10 @@ Para integrar con otros sistemas:
 4. **Cancelar** cuando el usuario cancela
    - `DELETE /api/subscriptions/:id` o `PATCH` con `status: "cancelled"`
 
+### Automatizaciones del Sistema
+
 El sistema se encarga automáticamente de:
+- ✅ Enviar email de bienvenida al aprobar usuario
 - ✅ Enviar notificaciones de expiración (7, 3, 1 día antes)
 - ✅ Enviar email al crear suscripción
 - ✅ Enviar email al cambiar status a `active` (renovación)

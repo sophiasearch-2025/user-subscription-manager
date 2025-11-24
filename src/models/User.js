@@ -7,12 +7,18 @@ class User {
   constructor(data) {
     this.uid = data.uid || null;
     this.email = data.email;
+    this.username = data.username || null;
+    this.password = data.password || null; // Se guardará hasheada
     this.name = data.name || null;
     this.company = data.company || null;
     this.estado = data.estado || 'active'; // active, inactive, suspended
     this.stripeCustomerId = data.stripeCustomerId || null;
     this.role = data.role || 'user'; // user, premium, admin
     this.photoURL = data.photoURL || null;
+    this.comprobanteUrl = data.comprobanteUrl || null; // URL del comprobante en Firebase Storage (deprecado)
+    this.comprobanteBase64 = data.comprobanteBase64 || null; // Comprobante en formato base64 (binario)
+    this.comprobanteInfo = data.comprobanteInfo || null; // Info del archivo (filename, mimetype, size)
+    this.solicitudAprobada = data.solicitudAprobada !== undefined ? data.solicitudAprobada : false; // Por defecto false
     this.createdAt = data.createdAt || new Date();
     this.updatedAt = data.updatedAt || new Date();
   }
@@ -28,17 +34,23 @@ class User {
       await docRef.set({
         uid: user.uid,
         email: user.email,
+        username: user.username,
+        password: user.password, // Ya debe venir hasheada del controller
         name: user.name,
         company: user.company,
         estado: user.estado,
         stripeCustomerId: user.stripeCustomerId,
         role: user.role,
         photoURL: user.photoURL,
+        comprobanteUrl: user.comprobanteUrl,
+        comprobanteBase64: user.comprobanteBase64,
+        comprobanteInfo: user.comprobanteInfo,
+        solicitudAprobada: false, // Siempre inicia en false
         createdAt: new Date(),
         updatedAt: new Date()
       });
       
-      console.log('✅ Usuario creado:', user.uid);
+      console.log('✅ Usuario creado (solicitud pendiente):', user.uid);
       return user;
     } catch (error) {
       console.error('Error creando usuario:', error);
@@ -82,6 +94,28 @@ class User {
       return new User({ uid: doc.id, ...doc.data() });
     } catch (error) {
       console.error('Error obteniendo usuario por email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener usuario por username
+   */
+  static async getByUsername(username) {
+    try {
+      const snapshot = await db.collection('users')
+        .where('username', '==', username)
+        .limit(1)
+        .get();
+      
+      if (snapshot.empty) {
+        return null;
+      }
+      
+      const doc = snapshot.docs[0];
+      return new User({ uid: doc.id, ...doc.data() });
+    } catch (error) {
+      console.error('Error obteniendo usuario por username:', error);
       throw error;
     }
   }
@@ -173,6 +207,62 @@ class User {
       return snapshot.data().count;
     } catch (error) {
       console.error('Error contando usuarios:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener usuarios con solicitudes pendientes
+   */
+  static async getPendingRequests() {
+    try {
+      const snapshot = await db.collection('users')
+        .where('solicitudAprobada', '==', false)
+        .get();
+      
+      const users = [];
+      snapshot.forEach(doc => {
+        users.push(new User({ uid: doc.id, ...doc.data() }));
+      });
+      
+      // Ordenar en memoria por fecha de creación
+      users.sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+        return dateB - dateA; // Más recientes primero
+      });
+      
+      return users;
+    } catch (error) {
+      console.error('Error obteniendo solicitudes pendientes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener usuarios aprobados
+   */
+  static async getApprovedUsers() {
+    try {
+      const snapshot = await db.collection('users')
+        .where('solicitudAprobada', '==', true)
+        .get();
+      
+      const users = [];
+      snapshot.forEach(doc => {
+        users.push(new User({ uid: doc.id, ...doc.data() }));
+      });
+      
+      // Ordenar en memoria por fecha de creación
+      users.sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+        return dateB - dateA; // Más recientes primero
+      });
+      
+      return users;
+    } catch (error) {
+      console.error('Error obteniendo usuarios aprobados:', error);
       throw error;
     }
   }

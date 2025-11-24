@@ -9,7 +9,8 @@ const serviceAccount = require(serviceAccountPath);
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.FIREBASE_PROJECT_ID
+    projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
+    storageBucket: `${serviceAccount.project_id}.appspot.com`
   });
 }
 
